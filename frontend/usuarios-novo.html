@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Usuário</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
+    <div class="navbar-links">
+      <a href="usuarios.html">Usuários</a>
+      <a href="backup.html">Backup</a>
+      <a href="logs.html">Logs</a>
+      <span class="navbar-usuario" id="nomeUsuario"></span>
+      <a href="#" id="btnSair">Sair</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="pagina-topo">
+      <h1>Novo Usuário</h1>
+      <a href="usuarios.html" class="btn btn-neutro">← Voltar</a>
+    </div>
+
+    <div class="alerta alerta-erro" id="mensagemErro"></div>
+    <div class="alerta alerta-sucesso" id="mensagemSucesso"></div>
+
+    <div class="card">
+
+      <div class="form-linha">
+        <div>
+          <label>Username *</label>
+          <input type="text" id="username" placeholder="ex: joao.silva">
+        </div>
+        <div>
+          <label>Email *</label>
+          <input type="email" id="email" placeholder="ex: joao@email.com">
+        </div>
+      </div>
+
+      <div>
+        <label>Perfil *</label>
+        <select id="role">
+          <option value="user">Usuário</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+
+      <div style="background:#f9f9f9;padding:16px;border-radius:5px;margin-top:16px">
+        <p style="font-size:13px;color:#666;margin-bottom:12px">
+          <strong>Política de senha:</strong>
+          mínimo 10 caracteres, letra maiúscula,
+          letra minúscula, número e caractere especial.
+        </p>
+
+        <div class="form-linha">
+          <div>
+            <label>Senha *</label>
+            <input type="password" id="password" placeholder="ex: MinhaSenha@123">
+          </div>
+          <div>
+            <label>Confirmar senha *</label>
+            <input type="password" id="confirmarSenha" placeholder="Repita a senha">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:24px">
+        <a href="usuarios.html" class="btn btn-neutro">Cancelar</a>
+        <button class="btn btn-sucesso" id="btnSalvar">Salvar</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/usuarios-novo.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <!-- importa o CSS global -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="login-wrapper">
+    <div class="card login-card">
+      <h1 class="login-titulo">🔒 SecureApp</h1>
+      <p class="login-subtitulo">Faça login para continuar</p>
+
+      <div class="alerta alerta-erro" id="mensagemErro"></div>
+
+      <label>Usuário</label>
+      <input
+        type="text"
+        id="username"
+        placeholder="Digite seu usuário"
+        autofocus
+      >
+
+      <label>Senha</label>
+      <input
+        type="password"
+        id="password"
+        placeholder="Digite sua senha"
+      >
+
+      <button class="btn btn-primario" id="btnLogin" style="width:100%;padding:11px;margin-top:8px">
+        Entrar
+      </button>
+    </div>
+  </div>
+
+  <script src="js/login.js"></script>
+
+</body>
+</html>

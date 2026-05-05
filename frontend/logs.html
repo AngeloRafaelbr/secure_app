@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs do Sistema</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
+    <div class="navbar-links">
+      <a href="usuarios.html">Usuários</a>
+      <a href="backup.html">Backup</a>
+      <a href="logs.html">Logs</a>
+      <span class="navbar-usuario" id="nomeUsuario"></span>
+      <a href="#" id="btnSair">Sair</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <h1>Logs do Sistema</h1>
+
+    <div class="alerta alerta-erro" id="mensagemErro"></div>
+
+    <!-- FILTROS -->
+    <div class="card">
+      <div class="form-linha">
+
+        <div>
+          <label>Tipo de log</label>
+          <select id="tipoLog">
+            <option value="geral">Geral (todos os eventos)</option>
+            <option value="erros">Somente erros</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Quantidade de linhas</label>
+          <select id="limite">
+            <option value="50">Últimas 50</option>
+            <option value="100">Últimas 100</option>
+            <option value="200">Últimas 200</option>
+            <option value="500" selected>Últimas 500</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primario" id="btnCarregar">
+            🔄 Atualizar
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ÁREA DOS LOGS -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0">Eventos registrados</h2>
+        <span id="totalLogs" style="font-size:13px;color:#888"></span>
+      </div>
+
+      <!-- textarea com fonte monospace para exibir logs -->
+      <!-- readonly impede edição -->
+      <textarea
+        id="areaLogs"
+        readonly
+        style="
+          width:100%;
+          height:550px;
+          font-family:monospace;
+          font-size:12px;
+          background:#1e1e1e;
+          color:#d4d4d4;
+          padding:14px;
+          border:none;
+          border-radius:5px;
+          resize:vertical;
+          line-height:1.6;
+        "
+      >Carregando logs...</textarea>
+    </div>
+
+  </div>
+
+  <script src="js/logs.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
+    <div class="navbar-links">
+      <a href="usuarios.html">Usuários</a>
+      <a href="backup.html">Backup</a>
+      <a href="logs.html">Logs</a>
+      <span class="navbar-usuario" id="nomeUsuario"></span>
+      <a href="#" id="btnSair">Sair</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="pagina-topo">
+      <h1>Usuários</h1>
+      <!-- só aparece para admin — controlado pelo JS -->
+      <a href="usuarios-novo.html" class="btn btn-sucesso" id="btnNovo">
+        + Novo Usuário
+      </a>
+    </div>
+
+    <div class="alerta alerta-erro" id="mensagemErro"></div>
+    <div class="alerta alerta-sucesso" id="mensagemSucesso"></div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Perfil</th>
+            <th>Status</th>
+            <th>Criado em</th>
+            <!-- coluna de ações só aparece para admin -->
+            <th id="colunaAcoes">Ações</th>
+          </tr>
+        </thead>
+        <!-- as linhas serão inseridas pelo JS -->
+        <tbody id="corpoTabela">
+          <tr>
+            <td colspan="6" style="text-align:center;color:#999">
+              Carregando...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script src="js/usuarios.js"></script>
+
+</body>
+</html>

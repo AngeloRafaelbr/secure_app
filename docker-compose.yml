@@ -1,0 +1,72 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_app
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      # define o fuso horário do Node.js
+      TZ: America/Recife
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # healthcheck garante que o MySQL está pronto
+    # antes do backend tentar conectar
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: backend_app
+    restart: always
+    # só sobe depois que o MySQL estiver saudável
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_ROOT_USER}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+      # define o fuso horário do Node.js
+      TZ: America/Recife
+    volumes:
+      # volumes nomeados — persistem sem precisar da pasta
+      - backend_logs:/app/logs
+      - backend_backups:/app/backups
+    # não expõe para fora — só o Nginx acessa
+    expose:
+      - "3000"
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_app
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      # HTTP — será redirecionado para HTTPS pelo Nginx
+      - "80:80"
+      # HTTPS — porta principal de acesso
+      - "443:443"
+    volumes:
+    #precisa da pasta local para o Nginx ler a configuração e os certificados
+      # configuração do Nginx
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    # Precisa da pasta local para o Nginx ler os certificados SSL
+      # certificado SSL
+      - ./ssl:/etc/nginx/ssl
+
+volumes:
+  mysql_data:
+  backend_logs:
+  backend_backups:

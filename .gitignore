@@ -1,0 +1,22 @@
+# dependências — pesado e pode ser reinstalado
+node_modules/
+
+# variáveis de ambiente — NUNCA subir (se referenciar pelo README ou pelo .env.example)
+.env
+backend/.env
+
+# certificados SSL — não subir chave privada (gerar novamente)
+ssl/cert.key
+
+
+# logs gerados pela aplicação (com exceção do .gitkeep para manter a pasta no repositório)
+backend/logs/*
+!backend/logs/.gitkeep
+
+# backups gerados pela aplicação (com exceção do .gitkeep para manter a pasta no repositório)
+backend/backups/*
+!backend/backups/.gitkeep
+
+# arquivos de sistema
+.DS_Store
+Thumbs.db
