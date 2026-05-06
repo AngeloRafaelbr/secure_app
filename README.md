@@ -23,6 +23,7 @@ Desenvolvido como projeto acadêmico da disciplina de Segurança da Informação
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Instalação e configuração](#instalação-e-configuração)
 - [Rodando em desenvolvimento](#rodando-em-desenvolvimento)
+- [Migrando do Docker para desenvolvimento local](#Migrando-do-Docker-para-desenvolvimento-local)
 - [Rodando com Docker](#rodando-com-docker)
 - [Primeiro acesso](#primeiro-acesso)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
@@ -285,6 +286,184 @@ ls -la ssl/
 
 > ℹ️ Se o OpenSSL não estiver instalado no Windows, baixe em:
 > https://slproweb.com/products/Win32OpenSSL.html (versão Light é suficiente)
+
+---
+
+## Migrando do Docker para desenvolvimento local
+
+Use essa abordagem quando quiser desenvolver ativamente e ver
+as mudanças refletindo imediatamente, sem precisar rebuildar
+os containers a cada alteração.
+
+### Por que migrar para local durante o desenvolvimento?
+Com Docker:
+altera o código → docker compose down
+→ docker compose up -d --build
+→ aguarda o rebuild (minutos)
+→ testa
+→ repete...
+Local:
+altera o código → salva o arquivo → testa
+(imediato)
+
+### O que muda
+
+| Componente | Docker | Local |
+|---|---|---|
+| MySQL | container mysql_app | container mysql_app (só ele) |
+| Backend | container backend_app | node server.js direto |
+| Frontend | container Nginx | arquivo aberto no browser |
+| API_URL | `/api` | `http://localhost:3000` |
+| DB_HOST | `mysql` (docker-compose sobrescreve) | `localhost` (backend/.env) |
+| HTTPS | ✅ via Nginx | ❌ HTTP puro |
+
+### Passo a passo
+
+**1. Parar todos os containers**
+
+```bash
+docker compose down
+```
+
+**2. Subir apenas o MySQL**
+
+```bash
+docker compose up -d mysql
+```
+
+Verifique se subiu:
+
+```bash
+docker compose ps
+# NAME        STATUS
+# mysql_app   running (healthy)
+```
+
+**3. Confirmar o `backend/.env`**
+
+O `DB_HOST` deve estar como `localhost`:
+
+```bash
+DB_HOST=localhost
+```
+
+> ℹ️ Quando tudo roda no Docker, o `docker-compose.yml` sobrescreve
+> essa variável para `mysql` automaticamente. No desenvolvimento local
+> o `backend/.env` é lido diretamente — por isso precisa ser `localhost`.
+
+**4. Atualizar o `API_URL` nos arquivos JS do frontend**
+
+Em todos os arquivos abaixo, mude:
+
+```js
+// de
+const API_URL = '/api'
+
+// para
+const API_URL = 'http://localhost:3000'
+```
+
+Arquivos a alterar:
+frontend/js/login.js
+frontend/js/usuarios.js
+frontend/js/usuarios-novo.js
+frontend/js/usuarios-editar.js
+frontend/js/backup.js
+frontend/js/logs.js
+
+> ⚠️ Sem essa mudança o frontend não consegue chamar o backend,
+> pois o `/api` só funciona quando o Nginx está no meio fazendo o proxy.
+
+**5. Instalar dependências e iniciar o backend**
+
+```bash
+cd backend
+npm install
+node server.js
+```
+
+Esperado:
+Banco de dados conectado com sucesso!
+Servidor rodando em http://localhost:3000
+
+Confirme que o backend está respondendo:
+http://localhost:3000/health
+→ { "status": "servidor rodando" }
+
+**6. Abrir o frontend**
+
+Abra o arquivo `frontend/login.html` diretamente no browser
+ou use a extensão **Live Server** do VS Code para atualização
+automática ao salvar arquivos.
+
+> ℹ️ Sem o Nginx o frontend não tem um servidor próprio —
+> você acessa os arquivos HTML diretamente. O Live Server
+> resolve isso servindo os arquivos em `http://127.0.0.1:5500`.
+
+---
+
+### Voltando para o Docker após o desenvolvimento
+
+Quando a funcionalidade estiver pronta e testada localmente,
+siga esses passos antes de commitar no GitHub:
+
+**1. Reverter o `API_URL` nos arquivos JS**
+
+```js
+// de
+const API_URL = 'http://localhost:3000'
+
+// para
+const API_URL = '/api'
+```
+
+**2. Confirmar o `backend/.env`**
+
+```bash
+# pode deixar localhost — o docker-compose.yml
+# sobrescreve para "mysql" automaticamente
+DB_HOST=localhost
+```
+
+**3. Parar o MySQL local**
+
+```bash
+docker compose down
+```
+
+**4. Subir tudo no Docker**
+
+```bash
+docker compose up -d --build
+```
+
+**5. Testar no browser**
+https://localhost
+
+**6. Se tudo estiver funcionando — commitar**
+
+```bash
+git add .
+git commit -m "feat: descrição do que foi desenvolvido"
+git push
+```
+
+---
+
+### Observações importantes
+
+> ⚠️ **Nunca commite com `API_URL = 'http://localhost:3000'`**
+> A aplicação não funcionará no Docker com esse valor.
+
+> ⚠️ **HTTPS não funciona em desenvolvimento local**
+> O certificado SSL é gerenciado pelo Nginx que só roda no Docker.
+> Em desenvolvimento o acesso é via HTTP puro — isso é normal e esperado.
+
+> ℹ️ **Os dados do banco persistem entre os ambientes**
+> O volume Docker `meu-app_mysql_data` mantém os dados independente
+> de estar rodando tudo no Docker ou só o MySQL.
+> Não é necessário recriar tabelas ou o admin ao alternar entre os ambientes.
+
 
 ---
 
