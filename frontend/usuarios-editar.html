@@ -12,6 +12,7 @@
     <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
     <div class="navbar-links">
       <a href="usuarios.html">Usuários</a>
+      <a href="sistemas.html">Sistemas</a>
       <a href="backup.html">Backup</a>
       <a href="logs.html">Logs</a>
       <span class="navbar-usuario" id="nomeUsuario"></span>
@@ -39,6 +40,23 @@
         <div>
           <label>Email *</label>
           <input type="email" id="email" placeholder="ex: joao@email.com">
+        </div>
+      </div>
+
+      <!-- ===================================================
+     SEÇÃO DE ACESSOS EM SISTEMAS INTEGRADOS
+     exibe o nível de acesso do usuário em cada sistema
+     consultado em tempo real ao carregar a página
+      =================================================== -->
+      <div class="card">
+        <h2>🔗 Acessos em Sistemas Integrados</h2>
+        <p style="font-size:13px;color:#666;margin-bottom:16px">
+          Nível de acesso consultado em tempo real em cada sistema.
+          As informações são gerenciadas pelos próprios sistemas externos.
+        </p>
+
+        <div id="listaAcessos">
+          <p style="color:#999;font-size:14px">Carregando acessos...</p>
         </div>
       </div>
 

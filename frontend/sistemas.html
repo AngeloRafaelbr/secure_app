@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistemas Integrados</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ===================================================
+       ESTILOS ESPECÍFICOS DA PÁGINA DE SISTEMAS
+    =================================================== */
+
+    /* badge de status online/offline */
+    .badge-online {
+      background: #d5f5e3;
+      color: #1e8449;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .badge-offline {
+      background: #fde8e8;
+      color: #c0392b;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .badge-verificando {
+      background: #fef9e7;
+      color: #d4ac0d;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    /* caixa de destaque da api_key
+       aparece apenas após cadastrar um sistema */
+    .api-key-box {
+      background: #1e1e1e;
+      color: #4ec9b0;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 16px;
+      border-radius: 6px;
+      word-break: break-all;
+      margin: 12px 0;
+    }
+
+    /* alerta de aviso — api_key só aparece uma vez */
+    .aviso-chave {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 12px 16px;
+      border-radius: 5px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================
+       NAVBAR
+  =================================================== -->
+  <nav class="navbar">
+    <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
+    <div class="navbar-links">
+      <a href="usuarios.html">Usuários</a>
+      <a href="sistemas.html">Sistemas</a>
+      <a href="backup.html">Backup</a>
+      <a href="logs.html">Logs</a>
+      <span class="navbar-usuario" id="nomeUsuario"></span>
+      <a href="#" id="btnSair">Sair</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="pagina-topo">
+      <h1>🔗 Sistemas Integrados</h1>
+      <button class="btn btn-sucesso" id="btnNovo">
+        + Cadastrar Sistema
+      </button>
+    </div>
+
+    <div class="alerta alerta-erro" id="mensagemErro"></div>
+    <div class="alerta alerta-sucesso" id="mensagemSucesso"></div>
+
+    <!-- ===================================================
+         MODAL — EXIBE A API_KEY APÓS CADASTRO
+         aparece apenas uma vez — admin deve copiar agora
+    =================================================== -->
+    <div id="modalApiKey" style="display:none">
+      <div class="card" style="border: 2px solid #f39c12">
+
+        <h2>🔑 Sistema cadastrado com sucesso!</h2>
+
+        <div class="aviso-chave">
+          ⚠️ <strong>Atenção:</strong> copie a API Key abaixo agora.
+          Ela <strong>não será exibida novamente</strong>.
+          Passe-a ao administrador do sistema externo para
+          configurar o endpoint de acessos.
+        </div>
+
+        <label>API Key gerada:</label>
+        <div class="api-key-box" id="apiKeyGerada"></div>
+
+        <button class="btn btn-primario" id="btnCopiarChave">
+          📋 Copiar API Key
+        </button>
+        <button class="btn btn-neutro" id="btnFecharModal"
+          style="margin-left:8px">
+          Fechar
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ===================================================
+         FORMULÁRIO — CADASTRAR NOVO SISTEMA
+         aparece ao clicar em "+ Cadastrar Sistema"
+    =================================================== -->
+    <div class="card" id="formNovo" style="display:none">
+      <h2>Novo Sistema</h2>
+
+      <label>Nome do sistema *</label>
+      <input type="text" id="nomeNovo"
+        placeholder="ex: Sistema Financeiro">
+
+      <label>URL do endpoint de acessos *</label>
+      <input type="text" id="urlNovo"
+        placeholder="ex: http://192.168.1.x:4000">
+
+      <p class="campo-hint">
+        O SecureApp consultará:
+        <code>[URL]/acessos?email=usuario@empresa.com</code>
+      </p>
+
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-neutro" id="btnCancelarNovo">
+          Cancelar
+        </button>
+        <button class="btn btn-sucesso" id="btnSalvarNovo">
+          Cadastrar
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================
+         TABELA — LISTA DE SISTEMAS CADASTRADOS
+    =================================================== -->
+    <div class="card">
+      <div id="listaSistemas">
+        <p style="color:#999;font-size:14px">Carregando...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/sistemas.js"></script>
+
+</body>
+</html>

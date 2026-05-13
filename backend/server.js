@@ -29,6 +29,8 @@ const { router: backupRoutes, recarregarAgendamentos } = require('./routes/backu
 
 const logsRoutes = require('./routes/logs')
 
+const sistemasRoutes = require('./routes/sistemas')
+
 // criamos a aplicação express
 const app = express()
 
@@ -79,6 +81,19 @@ app.use('/backup', backupRoutes)
 
 //----------------------------------------
 app.use('/logs', logsRoutes)
+
+
+// ===================================================
+// SISTEMAS
+// ===================================================
+
+app.use('/sistemas', sistemasRoutes)
+
+
+// junto com as outras rotas
+app.use('/sistemas', sistemasRoutes)
+
+
 
 // ===================================================
 // INICIALIZAÇÃO DO SERVIDOR

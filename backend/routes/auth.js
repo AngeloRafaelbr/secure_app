@@ -223,6 +223,84 @@ router.post('/logout', verificarToken, (req, res) => {
 })
 
 // ===================================================
+// POST /auth/verificar-token
+// endpoint usado pelos sistemas externos para
+// validar se um token JWT é válido
+// identifica o usuário e registra a autenticação
+// ===================================================
+
+router.post('/verificar-token', async (req, res) => {
+  try {
+
+    // o sistema externo envia o token no header
+    const authHeader = req.headers['authorization']
+
+    if (!authHeader) {
+      return res.status(401).json({ valido: false, erro: 'Token não fornecido.' })
+    }
+
+    const token = authHeader.split(' ')[1]
+
+    if (!token) {
+      return res.status(401).json({ valido: false, erro: 'Token malformado.' })
+    }
+
+    // verifica o token usando a chave secreta
+    const dados = jwt.verify(token, process.env.JWT_SECRET)
+
+    // busca o usuário atualizado no banco
+    const [rows] = await db.query(
+      'SELECT id, username, email, role FROM usuarios WHERE id = ?',
+      [dados.id]
+    )
+
+    if (rows.length === 0) {
+      return res.status(401).json({ valido: false, erro: 'Usuário não encontrado.' })
+    }
+
+    const usuario = rows[0]
+
+    // identifica qual sistema está verificando o token
+    // pelo header x-api-key
+    const apiKey = req.headers['x-api-key']
+
+    if (apiKey) {
+      const [sistemas] = await db.query(
+        'SELECT id FROM sistemas WHERE api_key = ? AND ativo = 1',
+        [apiKey]
+      )
+
+      // registra a autenticação no histórico
+      // apenas se o sistema for reconhecido
+      if (sistemas.length > 0) {
+        await db.query(
+          'INSERT INTO autenticacoes (usuario_id, sistema_id, ip_origem) VALUES (?, ?, ?)',
+          [
+            usuario.id,
+            sistemas[0].id,
+            req.ip || req.connection.remoteAddress
+          ]
+        )
+      }
+    }
+
+    res.json({
+      valido: true,
+      usuario: {
+        id: usuario.id,
+        username: usuario.username,
+        email: usuario.email,
+        role: usuario.role
+      }
+    })
+
+  } catch (erro) {
+    // TokenExpiredError ou JsonWebTokenError
+    res.status(401).json({ valido: false, erro: 'Token inválido ou expirado.' })
+  }
+})
+
+// ===================================================
 // EXPORTAÇÃO
 // ===================================================
 

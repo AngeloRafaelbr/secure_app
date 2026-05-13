@@ -5,9 +5,120 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Backup</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ===================================================
+       ESTILOS ESPECÍFICOS DA PÁGINA DE BACKUP
+       Complementam o style.css global
+    =================================================== */
+
+    /* container das abas de tipo de backup */
+    .abas {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    /* botão de aba — estado inativo */
+    .aba {
+      padding: 9px 20px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      color: #555;
+    }
+
+    /* botão de aba — estado ativo */
+    .aba.ativa {
+      border-color: #2980b9;
+      background: #2980b9;
+      color: white;
+    }
+
+    /* painel de conteúdo de cada aba — escondido por padrão */
+    .painel-aba {
+      display: none;
+    }
+
+    /* painel ativo — visível */
+    .painel-aba.ativo {
+      display: block;
+    }
+
+    /* grade dos checkboxes dos dias da semana */
+    .dias-semana {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    /* cada item dia da semana */
+    .dia-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    /* checkbox do dia estilizado */
+    .dia-item input[type="checkbox"] {
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      accent-color: #2980b9;
+    }
+
+    /* linha de inputs de horário */
+    .linha-horario {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    /* select de hora e minuto */
+    .linha-horario select {
+      width: 80px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    /* separador : entre hora e minuto */
+    .linha-horario span {
+      font-size: 20px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    /* checkbox de repetir mensalmente */
+    .checkbox-linha {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .checkbox-linha input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #2980b9;
+    }
+  </style>
 </head>
 <body>
 
+  <!-- ===================================================
+       NAVBAR — barra de navegação superior
+  =================================================== -->
   <nav class="navbar">
     <a href="usuarios.html" class="navbar-logo">🔒 SecureApp</a>
     <div class="navbar-links">
@@ -21,14 +132,18 @@
 
   <div class="container">
 
-    <h1>Backup & Restore</h1>
+    <h1>💾 Backup & Restore</h1>
 
+    <!-- alertas de erro e sucesso — controlados pelo JS -->
     <div class="alerta alerta-erro" id="mensagemErro"></div>
     <div class="alerta alerta-sucesso" id="mensagemSucesso"></div>
 
-    <!-- BACKUP MANUAL -->
+    <!-- ===================================================
+         SEÇÃO 1 — BACKUP MANUAL
+         Botão simples que dispara o backup imediatamente
+    =================================================== -->
     <div class="card">
-      <h2>Backup Manual</h2>
+      <h2>▶ Backup Manual</h2>
       <p style="font-size:14px;color:#666;margin-bottom:16px">
         Gera um arquivo .sql com todos os dados do banco agora.
       </p>
@@ -37,200 +152,180 @@
       </button>
     </div>
 
-    <!-- AGENDAMENTO -->
+    <!-- ===================================================
+         SEÇÃO 2 — BACKUP AGENDADO
+         Duas abas: Recorrente, Eventual
+         O usuário escolhe o tipo e preenche o formulário
+         O JavaScript converte para expressão cron
+         antes de enviar para o backend
+    =================================================== -->
     <div class="card">
-      <h2>Agendar Backup Automático</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">
-        O backup será executado automaticamente no horário definido.
-      </p>
+      <h2>📅 Agendar Backup Automático</h2>
 
-      <div class="form-linha">
-  <div>
-    <label>Expressão Cron *</label>
-    <input
-      type="text"
-      id="cronExpressao"
-      placeholder="ex: 0 2 * * *"
-    >
+      <!-- abas de tipo de agendamento -->
+      <div class="abas">
+        <button class="aba ativa" id="abaRecorrente"
+          onclick="trocarAba('recorrente')">
+          🔁 Recorrente
+        </button>
+        <button class="aba" id="abaEventual"
+          onclick="trocarAba('eventual')">
+          📆 Eventual
+        </button>
+      </div>
 
-    <!-- botão que abre/fecha a ajuda -->
-    <p class="campo-hint">
-      <span
-        id="btnAjudaCron"
-        style="color:#2980b9;cursor:pointer;user-select:none"
-      >
-        ℹ️ Como configurar o agendamento automático (Cron) ▼
-      </span>
-    </p>
+      <!-- - - - - - - - - - - - - - - - - - - - - - - -
+           PAINEL — BACKUP RECORRENTE
+           Usuário seleciona dias da semana e horário
+           Ex: Segunda + 03:00 → cron: "0 3 * * 1"
+      - - - - - - - - - - - - - - - - - - - - - - - - -->
+      <div class="painel-aba ativo" id="painelRecorrente">
 
-    <!-- painel de ajuda — começa escondido -->
-    <div id="ajudaCron" style="
-      display:none;
-      background:#f4f8fb;
-      border:1px solid #d0e4f0;
-      border-radius:6px;
-      padding:16px;
-      margin-top:8px;
-      font-size:13px;
-      line-height:1.7;
-      color:#444;
-    ">
+        <label style="margin-bottom:10px;display:block">
+          Selecione o(s) dia(s) da semana:
+        </label>
 
-      <p>
-        O campo de agendamento usa um formato chamado <strong>cron</strong>,
-        que permite definir exatamente quando uma tarefa deve ser executada
-        automaticamente. Ele é composto por <strong>5 campos separados por
-        espaço</strong>, cada um representando uma unidade de tempo.
-      </p>
+        <!-- checkboxes dos dias — value = número do dia no cron
+             0=domingo, 1=segunda, 2=terça... 6=sábado -->
+        <div class="dias-semana">
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="1" id="seg">
+            <label for="seg">Seg</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="2" id="ter">
+            <label for="ter">Ter</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="3" id="qua">
+            <label for="qua">Qua</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="4" id="qui">
+            <label for="qui">Qui</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="5" id="sex">
+            <label for="sex">Sex</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="6" id="sab">
+            <label for="sab">Sáb</label>
+          </div>
+          <div class="dia-item">
+            <input type="checkbox" class="dia-check" value="0" id="dom">
+            <label for="dom">Dom</label>
+          </div>
+        </div>
 
-      <p style="margin-top:12px">
-        A ordem dos campos é:
-        <strong>Minuto — Hora — Dia do mês — Mês — Dia da semana</strong>
-      </p>
+        <!-- seletor de horário -->
+        <label style="margin-bottom:8px;display:block">Horário:</label>
+        <div class="linha-horario">
+          <!-- select de horas gerado pelo JS (00 a 23) -->
+          <select id="horaRecorrente"></select>
+          <span>:</span>
+          <!-- select de minutos — apenas 00, ... 60 -->
+          <select id="minutoRecorrente"></select>
+        </div>
 
-      <p style="margin-top:12px"><strong>Exemplos prontos para usar:</strong></p>
-      <table style="margin-top:6px;width:100%">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:6px 10px;background:#ddeef7;border-radius:4px 0 0 0">Expressão</th>
-            <th style="text-align:left;padding:6px 10px;background:#ddeef7;border-radius:0 4px 0 0">Quando executa</th>
-            <th style="text-align:left;padding:6px 10px;background:#ddeef7"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="padding:5px 10px"><code>* * * * *</code></td>
-            <td style="padding:5px 10px">A cada minuto</td>
-            <td style="padding:5px 10px">
-              <span
-                style="color:#2980b9;cursor:pointer;font-size:12px"
-                onclick="usarExpressao('* * * * *')"
-              >
-                Usar ↗
-              </span>
-            </td>
-          </tr>
-          <tr style="background:#f9f9f9">
-            <td style="padding:5px 10px"><code>0 8 * * *</code></td>
-            <td style="padding:5px 10px">Todo dia às 08:00</td>
-            <td style="padding:5px 10px">
-              <span
-                style="color:#2980b9;cursor:pointer;font-size:12px"
-                onclick="usarExpressao('0 8 * * *')"
-              >
-                Usar ↗
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:5px 10px"><code>0 18 * * 1-5</code></td>
-            <td style="padding:5px 10px">De segunda a sexta às 18:00</td>
-            <td style="padding:5px 10px">
-              <span
-                style="color:#2980b9;cursor:pointer;font-size:12px"
-                onclick="usarExpressao('0 18 * * 1-5')"
-              >
-                Usar ↗
-              </span>
-            </td>
-          </tr>
-          <tr style="background:#f9f9f9">
-            <td style="padding:5px 10px"><code>*/5 * * * *</code></td>
-            <td style="padding:5px 10px">A cada 5 minutos</td>
-            <td style="padding:5px 10px">
-              <span
-                style="color:#2980b9;cursor:pointer;font-size:12px"
-                onclick="usarExpressao('*/5 * * * *')"
-              >
-                Usar ↗
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:5px 10px"><code>0 0 1 * *</code></td>
-            <td style="padding:5px 10px">Dia 1 de cada mês à meia-noite</td>
-            <td style="padding:5px 10px">
-              <span
-                style="color:#2980b9;cursor:pointer;font-size:12px"
-                onclick="usarExpressao('0 0 1 * *')"
-              >
-                Usar ↗
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <label style="margin-bottom:8px;display:block">
+          Descrição (opcional):
+        </label>
+        <input type="text" id="descricaoRecorrente"
+          placeholder="ex: Backup semanal às 3h"
+          style="margin-bottom:16px">
 
-      <p style="margin-top:12px"><strong>Dicas rápidas:</strong></p>
-      <ul style="margin-top:6px;padding-left:18px">
-        <li>
-          O símbolo <code>*</code> significa "qualquer valor" —
-          todos os minutos, todas as horas, todos os dias, etc.
-        </li>
-        <li>
-          Use <code>/</code> para intervalos —
-          <code>*/10</code> significa "a cada 10".
-        </li>
-        <li>
-          Use <code>-</code> para faixas —
-          <code>1-5</code> significa "de 1 até 5".
-        </li>
-        <li>
-          Use <code>,</code> para valores específicos —
-          <code>1,15,30</code> significa "nos valores 1, 15 e 30".
-        </li>
-      </ul>
+        <button class="btn btn-primario" id="btnAgendarRecorrente">
+          📅 Agendar Backup Recorrente
+        </button>
 
-      <p style="margin-top:12px;color:#c0392b;font-size:12px">
-        ⚠️ Os horários seguem o fuso horário configurado no sistema.
-        Certifique-se de que ele está correto antes de salvar o agendamento.
-      </p>
+      </div>
 
-    </div>
-  </div>
+      <!-- - - - - - - - - - - - - - - - - - - - - - - -
+           PAINEL — BACKUP EVENTUAL
+           Usuário seleciona uma data no calendário e horário
+           Checkbox opcional para repetir todo mês naquele dia
+           Ex: 15/04/2026 + 14:00 → cron: "0 14 15 4 *"
+           Ex: com repetição mensal → cron: "0 14 15 * *"
+      - - - - - - - - - - - - - - - - - - - - - - - - -->
+      <div class="painel-aba" id="painelEventual">
 
-  <div>
-    <label>Descrição</label>
-    <input
-      type="text"
-      id="descricao"
-      placeholder="ex: Backup diário às 2h"
-    >
-  </div>
-</div>
+        <label style="margin-bottom:8px;display:block">
+          Selecione a data:
+        </label>
 
-      <button class="btn btn-primario" id="btnAgendar" style="margin-top:16px">
-        📅 Salvar Agendamento
-      </button>
+        <!-- input date — abre calendário nativo do browser
+             min é preenchido pelo JS com a data de hoje
+             para bloquear datas passadas -->
+        <input type="date" id="dataEventual"
+          style="width:auto;margin-bottom:16px">
 
-      <!-- lista de agendamentos -->
+        <label style="margin-bottom:8px;display:block">Horário:</label>
+        <div class="linha-horario">
+          <select id="horaEventual"></select>
+          <span>:</span>
+          <select id="minutoEventual">
+            <option value="00">00</option>
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+          </select>
+        </div>
+
+        <!-- checkbox para repetição mensal -->
+        <div class="checkbox-linha">
+          <input type="checkbox" id="repetirMensalmente">
+          <label for="repetirMensalmente">
+            Repetir mensalmente neste dia
+          </label>
+        </div>
+
+        <label style="margin-bottom:8px;display:block">
+          Descrição (opcional):
+        </label>
+        <input type="text" id="descricaoEventual"
+          placeholder="ex: Backup mensal dia 15"
+          style="margin-bottom:16px">
+
+        <button class="btn btn-primario" id="btnAgendarEventual">
+          📆 Agendar Backup Eventual
+        </button>
+
+      </div>
+
+      <!-- lista de agendamentos salvos no banco -->
       <div id="listaAgendamentos" style="margin-top:24px"></div>
+
     </div>
 
-    <!-- RESTORE -->
+    <!-- ===================================================
+         SEÇÃO 3 — RESTORE
+         Seleciona um backup da lista e restaura o banco
+         Exige confirmação antes de executar
+    =================================================== -->
     <div class="card">
-      <h2>Restaurar Backup</h2>
-      <p style="font-size:13px;color:#e74c3c;margin-bottom:16px">
+      <h2>↩ Restaurar Backup</h2>
+      <p style="font-size:13px;color:#c0392b;margin-bottom:16px">
         ⚠️ Atenção: o restore substituirá todos os dados atuais do banco!
       </p>
 
       <label>Selecione um backup para restaurar</label>
-      <select id="selectBackup">
+      <select id="selectBackup" style="margin-bottom:16px">
         <option value="">-- Carregando backups... --</option>
       </select>
 
-      <button
-        class="btn btn-perigo"
-        id="btnRestore"
-        style="margin-top:16px"
-      >
+      <button class="btn btn-perigo" id="btnRestore">
         ↩ Restaurar Banco
       </button>
     </div>
 
-    <!-- LISTA DE BACKUPS -->
+    <!-- ===================================================
+         SEÇÃO 4 — LISTA DE BACKUPS DISPONÍVEIS
+         Exibe os arquivos .sql gerados
+         Permite download e exclusão de cada arquivo
+    =================================================== -->
     <div class="card">
-      <h2>Backups Disponíveis</h2>
+      <h2>📁 Backups Disponíveis</h2>
       <div id="listaBackups">
         <p style="color:#999;font-size:14px">Carregando...</p>
       </div>
@@ -238,6 +333,7 @@
 
   </div>
 
+  <!-- importa o JS da página -->
   <script src="js/backup.js"></script>
 
 </body>

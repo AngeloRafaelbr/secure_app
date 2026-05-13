@@ -3,10 +3,10 @@
 // ===================================================
 
 // DESENVOLVIMENTO LOCAL — sem Docker
-//const API_URL = 'http://localhost:3000'
+  const API_URL = 'http://localhost:3000'
 
 // PRODUÇÃO — com Docker e Nginx
- const API_URL = '/api'
+// const API_URL = '/api'
 
 // ===================================================
 // VERIFICAÇÃO DE AUTENTICAÇÃO
