@@ -51,7 +51,7 @@ const jobsAtivos = {}
 // FUNÇÃO AUXILIAR — EXECUTAR BACKUP
 // ===================================================
 
-// separamos a lógica do backup em uma função
+// lógica do backup em uma função
 // para reutilizar tanto no backup manual
 // quanto no backup agendado
 function executarBackup() {
@@ -67,12 +67,36 @@ function executarBackup() {
     const nomeArquivo = `backup_${timestamp}.sql`
     const caminhoArquivo = path.join(pastaBackups, nomeArquivo)
 
-    // antes usávamos "docker exec mysql_app mysqldump"
-    // agora o mysqldump roda dentro do próprio container
-    // do MySQL, acessado via network interno do Docker
-    // o host "mysql" é o nome do serviço no docker-compose
-    const comando = `mysqldump -h ${process.env.DB_HOST} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} > "${caminhoArquivo}"`
+    const host     = process.env.DB_HOST
+    const user     = process.env.DB_USER
+    const password = process.env.DB_PASSWORD
+    const database = process.env.DB_NAME
 
+    let comando
+
+    if (host === 'localhost') {
+      // ambiente local — Windows sem mysqldump instalado
+      // roda o mysqldump dentro do container Docker via docker exec
+      // o arquivo é gerado dentro do container e depois
+      // copiado para a pasta local com docker cp
+      comando =
+        `docker exec mysql_app mysqldump` +
+        ` -u ${user}` +
+        ` -p${password}` +
+        ` ${database}` +
+        ` > "${caminhoArquivo}"`
+
+    } else {
+      // ambiente Docker — mysqldump disponível no container backend
+      // conecta ao MySQL pelo hostname interno da rede Docker
+      comando =
+        `mysqldump` +
+        ` -h ${host}` +
+        ` -u ${user}` +
+        ` -p${password}` +
+        ` ${database}` +
+        ` > "${caminhoArquivo}"`
+    }
     exec(comando, (erro, stdout, stderr) => {
       if (erro) {
         return reject(new Error(stderr || erro.message))
@@ -92,7 +116,7 @@ router.post('/agora', verificarToken, verificarAdmin, async (req, res) => {
 
     const nomeArquivo = await executarBackup()
 
-    // requisito 3.6 — log de backup realizado
+    //  log de backup realizado
     logger.logBackupRealizado(nomeArquivo)
 
     res.json({
@@ -211,9 +235,32 @@ router.post('/restaurar', verificarToken, verificarAdmin, async (req, res) => {
       return res.status(404).json({ erro: 'Arquivo de backup não encontrado.' })
     }
 
-    // monta o comando de restore dentro do container
-    // o < lê o arquivo e manda para o mysql executar
-   const comando = `mysql -h ${process.env.DB_HOST} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME} < "${caminhoArquivo}"`
+   const host     = process.env.DB_HOST
+const user     = process.env.DB_USER
+const password = process.env.DB_PASSWORD
+const database = process.env.DB_NAME
+
+let comando
+
+if (host === 'localhost') {
+  // ambiente local — usa docker exec para rodar
+  // o cliente mysql dentro do container
+  comando =
+    `docker exec -i mysql_app mysql` +
+    ` -u ${user}` +
+    ` -p${password}` +
+    ` ${database}` +
+    ` < "${caminhoArquivo}"`
+} else {
+  // ambiente Docker — cliente mysql disponível no container
+  comando =
+    `mysql` +
+    ` -h ${host}` +
+    ` -u ${user}` +
+    ` -p${password}` +
+    ` ${database}` +
+    ` < "${caminhoArquivo}"`
+}
 
     exec(comando, (erro, stdout, stderr) => {
 
@@ -242,7 +289,7 @@ router.post('/restaurar', verificarToken, verificarAdmin, async (req, res) => {
 router.post('/agendar', verificarToken, verificarAdmin, async (req, res) => {
   try {
 
-    const { cronExpressao, descricao } = req.body
+    const { cronExpressao, descricao, tipo } = req.body
 
     if (!cronExpressao) {
       return res.status(400).json({ erro: 'Expressão cron é obrigatória.' })
@@ -264,11 +311,14 @@ router.post('/agendar', verificarToken, verificarAdmin, async (req, res) => {
 
     // salva o agendamento no banco
     const [resultado] = await db.query(
-      'INSERT INTO backup_agendamentos (cron_expressao, descricao) VALUES (?, ?)',
-      [cronExpressao, descricao || 'Backup agendado']
+      'INSERT INTO backup_agendamentos (cron_expressao, descricao, tipo) VALUES (?, ?, ?)',
+      [cronExpressao, descricao || 'Backup agendado', tipo || 'recorrente']
     )
 
     const novoId = resultado.insertId
+
+    const tipoDefinido = tipo || 'recorrente'
+
 
     // cria o job do cron na memória do servidor
     const job = cron.schedule(cronExpressao, async () => {
@@ -282,6 +332,26 @@ router.post('/agendar', verificarToken, verificarAdmin, async (req, res) => {
           'UPDATE backup_agendamentos SET ultimo_backup = NOW() WHERE id = ?',
           [novoId]
         )
+
+ if (tipoDefinido === 'eventual') {
+
+      // para o job do cron
+      job.stop()
+
+      // remove da memória
+      delete jobsAtivos[novoId]
+
+      // remove do banco — não precisa mais persistir
+      await db.query(
+        'DELETE FROM backup_agendamentos WHERE id = ?',
+        [novoId]
+      )
+
+      logger.info(
+        `AGENDAMENTO_EVENTUAL_CONCLUIDO | id=${novoId} | ` +
+        `Backup eventual executado e agendamento removido automaticamente.`
+      )
+    }
 
       } catch (erro) {
         logger.error(`Erro no backup agendado id=${novoId}: ${erro.message}`)
@@ -373,6 +443,8 @@ async function recarregarAgendamentos() {
 
       if (cron.validate(agendamento.cron_expressao)) {
 
+        const tipoDefinido = agendamento.tipo || 'recorrente'
+
         const job = cron.schedule(agendamento.cron_expressao, async () => {
           try {
 
@@ -383,6 +455,23 @@ async function recarregarAgendamentos() {
               'UPDATE backup_agendamentos SET ultimo_backup = NOW() WHERE id = ?',
               [agendamento.id]
             )
+
+            // eventual sem repetição — remove após executar
+            if (tipoDefinido === 'eventual') {
+
+              job.stop()
+              delete jobsAtivos[agendamento.id]
+
+              await db.query(
+                'DELETE FROM backup_agendamentos WHERE id = ?',
+                [agendamento.id]
+              )
+
+              logger.info(
+                `AGENDAMENTO_EVENTUAL_CONCLUIDO | id=${agendamento.id} | ` +
+                `Backup eventual executado e agendamento removido automaticamente.`
+              )
+            }
 
           } catch (erro) {
             logger.error(`Erro no backup agendado id=${agendamento.id}: ${erro.message}`)
