@@ -162,6 +162,52 @@ logger.logTrocaSenha = (username) => {
 }
 
 // ===================================================
+// EVENTOS DE SISTEMAS INTEGRADOS
+// ===================================================
+
+logger.logSistemaCadastrado = (nome, url) => {
+  logger.info(
+    `SISTEMA_CADASTRADO | sistema: "${nome}" | ` +
+    `Novo sistema integrado cadastrado. URL: ${url}`
+  )
+}
+
+logger.logSistemaAtualizado = (nome) => {
+  logger.info(
+    `SISTEMA_ATUALIZADO | sistema: "${nome}" | ` +
+    `Dados do sistema atualizados.`
+  )
+}
+
+logger.logSistemaRemovido = (nome) => {
+  logger.info(
+    `SISTEMA_REMOVIDO | sistema: "${nome}" | ` +
+    `Sistema integrado removido.`
+  )
+}
+
+logger.logChaveRegenerada = (nome) => {
+  logger.info(
+    `SISTEMA_CHAVE_REGENERADA | sistema: "${nome}" | ` +
+    `API Key regenerada. Chave anterior invalidada.`
+  )
+}
+
+logger.logConsultaAcessos = (email, totalSistemas) => {
+  logger.info(
+    `CONSULTA_ACESSOS | email: "${email}" | ` +
+    `Acessos consultados em ${totalSistemas} sistema(s).`
+  )
+}
+
+logger.logTokenVerificado = (username, sistema) => {
+  logger.info(
+    `TOKEN_VERIFICADO | usuário: "${username}" | ` +
+    `Token verificado pelo sistema: "${sistema}".`
+  )
+}
+
+// ===================================================
 // EXPORTAÇÃO
 // ===================================================
 

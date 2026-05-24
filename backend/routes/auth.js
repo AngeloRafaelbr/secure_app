@@ -266,7 +266,7 @@ router.post('/verificar-token', async (req, res) => {
 
     if (apiKey) {
       const [sistemas] = await db.query(
-        'SELECT id FROM sistemas WHERE api_key = ? AND ativo = 1',
+        'SELECT id, nome FROM sistemas WHERE api_key = ? AND ativo = 1',
         [apiKey]
       )
 
@@ -281,6 +281,12 @@ router.post('/verificar-token', async (req, res) => {
             req.ip || req.connection.remoteAddress
           ]
         )
+
+        logger.logTokenVerificado(
+          usuario.username,
+          nomeSistema[0]?.nome || 'desconhecido'
+        )
+
       }
     }
 

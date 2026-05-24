@@ -78,10 +78,7 @@ router.post('/', verificarToken, verificarAdmin, async (req, res) => {
       [nome, url, apiKey]
     )
 
-    logger.info(
-      `SISTEMA_CADASTRADO | sistema: "${nome}" | ` +
-      `Novo sistema integrado cadastrado. URL: ${url}`
-    )
+    logger.logSistemaCadastrado(nome, url)
 
     // api_key retornada APENAS neste momento
     // não será possível recuperá-la depois
@@ -161,6 +158,8 @@ router.get('/acessos/:email', verificarToken, async (req, res) => {
         }
       })
     )
+
+    logger.logConsultaAcessos(email, sistemas.length)
 
     res.json({ acessos })
 
@@ -256,10 +255,7 @@ router.post('/:id/regenerar-chave', verificarToken, verificarAdmin, async (req, 
       [novaApiKey, id]
     )
 
-    logger.info(
-      `SISTEMA_CHAVE_REGENERADA | sistema: "${rows[0].nome}" | ` +
-      `API Key regenerada. Chave anterior invalidada.`
-    )
+    logger.logChaveRegenerada(rows[0].nome)
 
     res.json({
       mensagem: 'Nova API Key gerada com sucesso.',
@@ -308,10 +304,7 @@ router.put('/:id', verificarToken, verificarAdmin, async (req, res) => {
       ]
     )
 
-    logger.info(
-      `SISTEMA_ATUALIZADO | sistema: "${nome || rows[0].nome}" | ` +
-      `Dados do sistema atualizados.`
-    )
+    logger.logSistemaAtualizado(nome || rows[0].nome)
 
     res.json({ mensagem: 'Sistema atualizado com sucesso.' })
 
@@ -343,10 +336,7 @@ router.delete('/:id', verificarToken, verificarAdmin, async (req, res) => {
 
     await db.query('DELETE FROM sistemas WHERE id = ?', [id])
 
-    logger.info(
-      `SISTEMA_REMOVIDO | sistema: "${rows[0].nome}" | ` +
-      `Sistema integrado removido.`
-    )
+    logger.logSistemaRemovido(rows[0].nome)
 
     res.json({ mensagem: 'Sistema removido com sucesso.' })
 
