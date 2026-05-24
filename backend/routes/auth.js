@@ -264,31 +264,37 @@ router.post('/verificar-token', async (req, res) => {
     // pelo header x-api-key
     const apiKey = req.headers['x-api-key']
 
-    if (apiKey) {
-      const [sistemas] = await db.query(
-        'SELECT id, nome FROM sistemas WHERE api_key = ? AND ativo = 1',
-        [apiKey]
-      )
-
-      // registra a autenticação no histórico
-      // apenas se o sistema for reconhecido
-      if (sistemas.length > 0) {
-        await db.query(
-          'INSERT INTO autenticacoes (usuario_id, sistema_id, ip_origem) VALUES (?, ?, ?)',
-          [
-            usuario.id,
-            sistemas[0].id,
-            req.ip || req.connection.remoteAddress
-          ]
-        )
-
-        logger.logTokenVerificado(
-          usuario.username,
-          nomeSistema[0]?.nome || 'desconhecido'
-        )
-
-      }
+    // api_key é obrigatória para usar esse endpoint
+    if (!apiKey) {
+      return res.status(401).json({
+        valido: false,
+        erro: 'Sistema não identificado. API Key obrigatória.'
+      })
     }
+
+    // verifica se a api_key pertence a um sistema ativo
+    const [sistemas] = await db.query(
+      'SELECT id, nome FROM sistemas WHERE api_key = ? AND ativo = 1',
+      [apiKey]
+    )
+
+    // api_key não reconhecida ou sistema inativo
+    if (sistemas.length === 0) {
+      return res.status(401).json({
+        valido: false,
+        erro: 'Sistema não autorizado. API Key inválida ou sistema inativo.'
+      })
+    }
+
+    // api_key válida — registra a autenticação
+    await db.query(
+      'INSERT INTO autenticacoes (usuario_id, sistema_id, ip_origem) VALUES (?, ?, ?)',
+      [
+        usuario.id,
+        sistemas[0].id,
+        req.ip || req.connection.remoteAddress
+      ]
+    )
 
     res.json({
       valido: true,
