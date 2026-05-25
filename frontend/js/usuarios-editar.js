@@ -2,23 +2,34 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO e CONFIGURAÇÃO DA NAVBAR E PERMISSÕES
 // ===================================================
 
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+let usuarioLogado = null
 
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
+verificarAutenticacao(false).then(usuario => {
+  if (!usuario) return
+  usuarioLogado = usuario
+  nomeUsuario.textContent = `👤 ${usuario.username}`
 
+  // usuário comum só edita a si mesmo
+  if (usuario.role !== 'admin' && parseInt(idUsuario) !== usuario.id) {
+    window.location.href = 'usuarios.html'
+    return
+  }
+
+  // esconde campo perfil para não admin
+  if (usuario.role !== 'admin') {
+    campoPerfil.style.display = 'none'
+  }
+
+  // carrega os dados após confirmar autenticação
+  carregarUsuario()
+})
 // ===================================================
 // LÊ O ID DA URL
 // ===================================================
@@ -58,10 +69,6 @@ const mensagemSucesso = document.getElementById('mensagemSucesso')
 const campoPerfil = document.getElementById('campoPerfil')
 const listaAcessos = document.getElementById('listaAcessos')
 
-// ===================================================
-// CONFIGURAÇÃO DA NAVBAR E PERMISSÕES
-// ===================================================
-
 nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
 
 // usuário comum não pode alterar o próprio perfil
@@ -95,19 +102,9 @@ function mostrarSucesso(mensagem) {
 async function carregarUsuario() {
   try {
 
-    const resposta = await fetch(`${API_URL}/usuarios/${idUsuario}`, {
+    const resposta = await fetchAutenticado(`${API_URL}/usuarios/${idUsuario}`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
     })
-
-    if (resposta.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      window.location.href = 'login.html'
-      return
-    }
 
     const dados = await resposta.json()
 
@@ -142,21 +139,11 @@ async function carregarAcessos(email) {
 
     // consulta o backend que por sua vez
     // consulta cada sistema externo em paralelo
-    const resposta = await fetch(
-      `${API_URL}/sistemas/acessos/${encodeURIComponent(email)}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+    const resposta = await fetchAutenticado(
+      `${API_URL}/sistemas/acessos/${encodeURIComponent(email)}`,{
+      method: 'GET',
       }
     )
-
-    if (resposta.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      window.location.href = 'login.html'
-      return
-    }
 
     const dados = await resposta.json()
 
@@ -329,21 +316,10 @@ async function salvarAlteracoes() {
 
     const resposta = await fetch(`${API_URL}/usuarios/${idUsuario}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(dadosParaEnviar)
     })
 
     const dados = await resposta.json()
-
-    if (resposta.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      window.location.href = 'login.html'
-      return
-    }
 
     if (!resposta.ok) {
       if (dados.detalhes && dados.detalhes.length > 0) {
@@ -373,19 +349,9 @@ async function salvarAlteracoes() {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-  try {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-  } catch (erro) {
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================

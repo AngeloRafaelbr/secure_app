@@ -13,6 +13,8 @@ const express = require('express')
 // cors — permite que o frontend (outra origem/porta) consiga chamar o backend sem ser bloqueado pelo browser
 const cors = require('cors')
 
+const cookieParser = require('cookie-parser')
+
 // path — módulo nativo do Node para lidar com caminhos de pasta de forma segura no Windows e Linux
 const path = require('path')
 
@@ -38,11 +40,24 @@ const app = express()
 // CONFIGURAÇÕES
 // ===================================================
 
+//Cookie parser para ler cookies nas requisições(JWT sendo armazenado em cookie em vez de localStorage, por exemplo)
+app.use(cookieParser())
+
 // habilita o cors para todas as origens em produção você limitaria para o domínio do frontend
-app.use(cors())
+app.use(cors({
+  origin: true, // permite todas as origens da requisição
+  credentials: true // permite enviar cookies (necessário para autenticação com cookies)
+}))
 
 // permite que o express leia o corpo das requisições no formato JSON — sem isso req.body vem undefined
 app.use(express.json())
+
+//permite servir os arquivos estáticos do frontend (HTML, CSS, JS) a partir da pasta frontend
+// serve o frontend apenas em desenvolvimento local em produção (Docker) o Nginx serve os arquivos
+if (process.env.NODE_ENV !== 'production') {
+  app.use(express.static(path.join(__dirname, '..', 'frontend')))
+  logger.info('Servindo frontend via Express (desenvolvimento)')
+}
 
 // lê a porta do .env, ou usa 3000 como padrão
 const PORT = process.env.PORT || 3000
@@ -87,10 +102,6 @@ app.use('/logs', logsRoutes)
 // SISTEMAS
 // ===================================================
 
-app.use('/sistemas', sistemasRoutes)
-
-
-// junto com as outras rotas
 app.use('/sistemas', sistemasRoutes)
 
 

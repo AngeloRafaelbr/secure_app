@@ -2,28 +2,29 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// URL base do backend
-// todos os fetchs usarão essa constante
-// se mudar a porta ou o endereço, muda só aqui
-
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
+//const API_URL definida em /frontend/js/config.js para ser usada 
+// em todos os outros arquivos de frontend
 
 // ===================================================
 // VERIFICAÇÃO — SE JÁ ESTÁ LOGADO
 // ===================================================
 
-// quando a página de login carrega, verificamos
-// se já existe um token salvo
-// se sim, não faz sentido mostrar o login de novo
-// redirecionamos direto para a página principal
-const tokenExistente = localStorage.getItem('token')
-if (tokenExistente) {
-  window.location.href = 'usuarios.html'
+// verifica se já está logado, tentando buscar os dados do usuário no backend
+// se o cookie existir, responde com sucesso
+async function verificarSessaoAtiva() {
+  try {
+    const resposta = await fetch(`${API_URL}/auth/me`, { 
+      credentials: 'include' // envia o cookie automaticamente
+    })
+    if (resposta.ok) {
+      window.location.href = 'usuarios.html'
+    }
+  } catch (erro) {
+    // não está logado — fica na tela de login
+  }
 }
+
+verificarSessaoAtiva()
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -80,31 +81,28 @@ async function fazerLogin() {
       method: 'POST',
 
       // informa ao backend que estamos enviando JSON
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: {'Content-Type': 'application/json'},
 
-      // converte o objeto JS para string JSON
-      // { username: 'joao', password: '123' }
-      // vira '{"username":"joao","password":"123"}'
+      // credentials: include instrui o browser a aceitar e guardar o cookie que o backend enviar
+      credentials: 'include',
+
       body: JSON.stringify({ username, password })
     })
 
     // converte a resposta do backend para objeto JS
     const dados = await resposta.json()
 
-    // resposta com status 200-299 é considerada sucesso
-    // qualquer outro status (401, 403, 500) é erro
+    // resposta com status 200-299 é considerada sucesso qualquer outro status (401, 403, 500) é erro
     if (!resposta.ok) {
       mostrarErro(dados.erro || 'Erro ao fazer login.')
       return
     }
 
-    // login bem sucedido
-    // salva o token e os dados do usuário no localStorage
-    // o localStorage persiste mesmo fechando o browser
-    localStorage.setItem('token', dados.token)
+    // LOGIN BEM SUCEDIDO!
+    // salva o token e os dados do usuário no localStorage, persiste mesmo fechando o browser
     localStorage.setItem('usuario', JSON.stringify(dados.usuario))
+    // o token é armazenado como cookie HttpOnly, conforme linha res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' }) no backend
+    // o JavaScript não tem acesso a ele por questões de segurança
 
     // redireciona para a página principal
     window.location.href = 'usuarios.html'

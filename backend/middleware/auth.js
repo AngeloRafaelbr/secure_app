@@ -15,72 +15,41 @@ const jwt = require('jsonwebtoken')
 
 function verificarToken(req, res, next) {
 
-  // o token chega no header 'Authorization' da requisição
-  // no formato: "Bearer eyJhbG..."
-  // o frontend envia assim:
-  //   fetch('/rota', {
-  //     headers: { 'Authorization': 'Bearer ' + token }
-  //   })
-  const authHeader = req.headers['authorization']
+  // tenta ler o token do cookie HttpOnly
+  // o browser envia automaticamente em toda requisição
+  let token = req.cookies.token
 
-  // se não veio nenhum header de autorização
-  if (!authHeader) {
+  // fallback — se não vier no cookie
+  // tenta o header Authorization
+  // mantido para compatibilidade com sistemas externos
+  // que usam o header (ex: /auth/verificar-token)
+  if (!token) {
+    const authHeader = req.headers['authorization']
+    if (authHeader) {
+      token = authHeader.split(' ')[1]
+    }
+  }
+
+  if (!token) {
     return res.status(401).json({
       erro: 'Acesso negado. Token não fornecido.'
     })
   }
 
-  // separa o "Bearer" do token em si
-  // "Bearer eyJhbG...".split(' ') retorna:
-  // ["Bearer", "eyJhbG..."]
-  // [1] pega o segundo elemento — o token
-  const token = authHeader.split(' ')[1]
-
-  // se o header veio mas estava malformado
-  // ex: veio só "Bearer" sem o token depois
-  if (!token) {
-    return res.status(401).json({
-      erro: 'Acesso negado. Token malformado.'
-    })
-  }
-
   try {
-
-    // jwt.verify faz duas coisas ao mesmo tempo:
-    // 1. verifica se o token foi assinado com nossa chave secreta
-    //    (garante que não foi falsificado)
-    // 2. verifica se o token ainda não expirou
-    // se qualquer uma falhar, lança um erro
-    // que é capturado pelo catch abaixo
     const dados = jwt.verify(token, process.env.JWT_SECRET)
-
-    // se chegou aqui, o token é válido
-    // salvamos os dados do usuário dentro do req
-    // para as rotas conseguirem acessar depois
-    // ex: em qualquer rota protegida você terá acesso a:
-    //   req.usuario.id
-    //   req.usuario.username
-    //   req.usuario.role
     req.usuario = dados
-
-    // next() libera a requisição para continuar
-    // para a rota que estava tentando acessar
-    next()
+    next() //esse next é importante para continuar para a função da rota depois do middleware
 
   } catch (erro) {
-
-    // TokenExpiredError — token expirou
     if (erro.name === 'TokenExpiredError') {
       return res.status(401).json({
         erro: 'Sessão expirada. Faça login novamente.'
       })
     }
-
-    // JsonWebTokenError — token inválido ou falsificado
-    return res.status(401).json({
-      erro: 'Token inválido.'
-    })
+    return res.status(401).json({ erro: 'Token inválido.' })
   }
+
 }
 
 // ===================================================

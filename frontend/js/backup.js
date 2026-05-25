@@ -14,31 +14,25 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
-
-
-
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO e CONFIGURAÇÃO DA NAVBAR
 // ===================================================
 
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+let usuarioLogado = null
 
-// redireciona para login se não estiver autenticado
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
+// true = requer admin
+verificarAutenticacao(true).then(usuario => {
+  if (!usuario) return
+  usuarioLogado = usuario
+  nomeUsuario.textContent = `👤 ${usuario.username}`
 
-// apenas admin acessa a página de backup
-if (usuarioLogado.role !== 'admin') {
-  window.location.href = 'usuarios.html'
-}
+  // carrega dados após confirmar autenticação
+  carregarBackups()
+  carregarAgendamentos()
+})
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -82,12 +76,6 @@ const selectBackup      = document.getElementById('selectBackup')
 
 // restore
 const btnRestore        = document.getElementById('btnRestore')
-
-// ===================================================
-// CONFIGURAÇÃO DA NAVBAR
-// ===================================================
-
-nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
 
 // ===================================================
 // INICIALIZAÇÃO DOS SELECTS DE HORA
@@ -163,28 +151,6 @@ function mostrarSucesso(mensagem) {
   mensagemSucesso.style.display = 'block'
   mensagemErro.style.display = 'none'
   window.scrollTo(0, 0)
-}
-
-// função reutilizável para fetch autenticado
-// adiciona o token JWT em todas as requisições
-// redireciona para login se token expirar (401)
-async function fetchAutenticado(url, opcoes = {}) {
-  const resposta = await fetch(url, {
-    ...opcoes,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...opcoes.headers
-    }
-  })
-
-  if (resposta.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
-
-  return resposta
 }
 
 // ===================================================
@@ -647,17 +613,9 @@ async function removerAgendamento(id) {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-  try {
-    await fetchAutenticado(`${API_URL}/auth/logout`, { method: 'POST' })
-  } catch (erro) {
-    // mesmo com erro no backend o logout local acontece
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================

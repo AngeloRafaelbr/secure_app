@@ -2,28 +2,23 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO e CONFIGURAÇÃO DA NAVBAR
 // ===================================================
 
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+//!!não é mais necessario verificar o token manualmente, o fetchAutenticado já cuida disso!!
+let usuarioLogado = null
 
-// se não estiver logado, manda para o login
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
-
-// se não for admin, não pode acessar essa página
-if (usuarioLogado.role !== 'admin') {
-  window.location.href = 'usuarios.html'
-}
+// true = requer admin
+// se não for admin redireciona para usuarios.html
+verificarAutenticacao(true).then(usuario => {
+  if (!usuario) return
+  usuarioLogado = usuario
+  nomeUsuario.textContent = `👤 ${usuario.username}`
+})
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -39,12 +34,6 @@ const btnSair = document.getElementById('btnSair')
 const nomeUsuario = document.getElementById('nomeUsuario')
 const mensagemErro = document.getElementById('mensagemErro')
 const mensagemSucesso = document.getElementById('mensagemSucesso')
-
-// ===================================================
-// CONFIGURAÇÃO DA NAVBAR
-// ===================================================
-
-nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
 
 // ===================================================
 // FUNÇÕES AUXILIARES
@@ -137,24 +126,12 @@ async function salvarUsuario() {
     btnSalvar.disabled = true
     btnSalvar.textContent = 'Salvando...'
 
-    const resposta = await fetch(`${API_URL}/usuarios`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ username, email, password, role })
-    })
+    const resposta = await fetchAutenticado(`${API_URL}/usuarios`, {
+    method: 'POST',
+    body: JSON.stringify({ username, email, password, role })
+   })
 
     const dados = await resposta.json()
-
-    // token expirou durante o uso
-    if (resposta.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      window.location.href = 'login.html'
-      return
-    }
 
     if (!resposta.ok) {
       // o backend pode retornar erros detalhados
@@ -189,19 +166,9 @@ async function salvarUsuario() {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-  try {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-  } catch (erro) {
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================

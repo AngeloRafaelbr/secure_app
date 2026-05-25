@@ -2,27 +2,19 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-//const API_URL = '/api'
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO e CONFIGURAÇÃO DA NAVBAR
 // ===================================================
 
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+verificarAutenticacao(true).then(usuario => {
+  if (!usuario) return
+  nomeUsuario.textContent = `👤 ${usuario.username}`
 
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
-
-// apenas admin acessa os logs
-if (usuarioLogado.role !== 'admin') {
-  window.location.href = 'usuarios.html'
-}
+  carregarLogs()
+})
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -36,12 +28,6 @@ const btnCarregar = document.getElementById('btnCarregar')
 const btnSair = document.getElementById('btnSair')
 const nomeUsuario = document.getElementById('nomeUsuario')
 const mensagemErro = document.getElementById('mensagemErro')
-
-// ===================================================
-// CONFIGURAÇÃO DA NAVBAR
-// ===================================================
-
-nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
 
 // ===================================================
 // FUNÇÕES AUXILIARES
@@ -72,11 +58,8 @@ async function carregarLogs() {
       ? `${API_URL}/logs/erros?limite=${limite}`
       : `${API_URL}/logs?limite=${limite}`
 
-    const resposta = await fetch(endpoint, {
+    const resposta = await fetchAutenticado(endpoint, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
     })
 
     // token expirou
@@ -126,19 +109,9 @@ async function carregarLogs() {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-  try {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-  } catch (erro) {
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================

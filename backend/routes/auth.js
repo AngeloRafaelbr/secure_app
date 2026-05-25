@@ -32,6 +32,8 @@ const MAX_TENTATIVAS = 5
 // tempo de bloqueio em minutos
 const TEMPO_BLOQUEIO = 10
 
+const emProducao = process.env.NODE_ENV === 'production'
+
 // ===================================================
 // POST /auth/login
 // ===================================================
@@ -189,14 +191,20 @@ router.post('/login', async (req, res) => {
 
     // responde com o token e dados básicos do usuário
     // o frontend salvará o token no localStorage
-    res.json({
-      token,
-      usuario: {
-        id: usuario.id,
-        username: usuario.username,
-        role: usuario.role
-      }
-    })
+    res.cookie('token', token, {
+  httpOnly: true,
+  secure: emProducao,
+  sameSite: emProducao ? 'strict' : 'lax',
+  maxAge: 8 * 60 * 60 * 1000
+      })
+
+      res.json({
+        usuario: {       // ← sem token no body
+          id:       usuario.id,
+          username: usuario.username,
+          role:     usuario.role
+        }
+      })
 
   } catch (erro) {
     logger.error(`Erro no login: ${erro.message}`)
@@ -216,9 +224,13 @@ router.post('/logout', verificarToken, (req, res) => {
   // com os dados que estavam dentro do token
   logger.logLogout(req.usuario.username)
 
-  // o JWT não tem "invalidar token" no servidor
-  // o frontend é responsável por apagar o token
-  // do localStorage ao receber essa resposta
+// remove o cookie do browser
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: emProducao,
+    sameSite: emProducao ? 'strict' : 'lax'
+  })
+
   res.json({ mensagem: 'Logout realizado com sucesso.' })
 })
 
@@ -296,13 +308,20 @@ router.post('/verificar-token', async (req, res) => {
       ]
     )
 
+    // token é enviado como cookie HttpOnly
+    res.cookie('token', token, {
+      httpOnly: true,             // JS não consegue ler
+      secure: emProducao, // false em dev(permite HTTP), true em produção(só trafega em HTTPS)
+      sameSite: emProducao ? 'strict' : 'lax', // proteção contra CSRF  lax aceita cross-origin em dev)
+      maxAge: 8 * 60 * 60 * 1000 // 8 horas em milissegundos
+    })
+
+    // retorna apenas os dados do usuário, token não vai no body
     res.json({
-      valido: true,
       usuario: {
-        id: usuario.id,
+        id:       usuario.id,
         username: usuario.username,
-        email: usuario.email,
-        role: usuario.role
+        role:     usuario.role
       }
     })
 
@@ -310,6 +329,24 @@ router.post('/verificar-token', async (req, res) => {
     // TokenExpiredError ou JsonWebTokenError
     res.status(401).json({ valido: false, erro: 'Token inválido ou expirado.' })
   }
+})
+
+// ===================================================
+// GET /auth/me
+// se chegou aqui o token é válido
+// retorna os dados básicos do usuário logado
+// ===================================================
+
+router.get('/me', verificarToken, (req, res) => {
+  // se chegou aqui o token é válido
+  // retorna os dados básicos do usuário logado
+  res.json({
+    usuario: {
+      id:       req.usuario.id,
+      username: req.usuario.username,
+      role:     req.usuario.role
+    }
+  })
 })
 
 // ===================================================

@@ -36,6 +36,7 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE}
       JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
       PORT: 3000
       # define o fuso horário do Node.js
       TZ: America/Recife

@@ -14,28 +14,23 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO E PERMISSÃO e CONFIGURAÇÃO DA NAVBAR
 // ===================================================
 
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+let usuarioLogado = null
 
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
+verificarAutenticacao(true).then(usuario => {
+  if (!usuario) return
+  usuarioLogado = usuario
+  nomeUsuario.textContent = `👤 ${usuario.username}`
 
-// apenas admin acessa sistemas
-if (usuarioLogado.role !== 'admin') {
-  window.location.href = 'usuarios.html'
-}
+  carregarSistemas()
+})
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -58,12 +53,6 @@ const btnCopiarChave = document.getElementById('btnCopiarChave')
 const btnFecharModal = document.getElementById('btnFecharModal')
 
 // ===================================================
-// CONFIGURAÇÃO DA NAVBAR
-// ===================================================
-
-nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
-
-// ===================================================
 // FUNÇÕES AUXILIARES
 // ===================================================
 
@@ -79,25 +68,6 @@ function mostrarSucesso(mensagem) {
   mensagemSucesso.style.display = 'block'
   mensagemErro.style.display = 'none'
   window.scrollTo(0, 0)
-}
-
-async function fetchAutenticado(url, opcoes = {}) {
-  const resposta = await fetch(url, {
-    ...opcoes,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...opcoes.headers
-    }
-  })
-
-  if (resposta.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
-
-  return resposta
 }
 
 // ===================================================
@@ -386,16 +356,9 @@ async function removerSistema(id, nome) {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-  try {
-    await fetchAutenticado(`${API_URL}/auth/logout`, { method: 'POST' })
-  } catch (erro) {
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================

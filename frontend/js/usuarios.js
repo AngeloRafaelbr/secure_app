@@ -2,25 +2,33 @@
 // CONFIGURAÇÃO
 // ===================================================
 
-// DESENVOLVIMENTO LOCAL — sem Docker
-  const API_URL = 'http://localhost:3000'
-
-// PRODUÇÃO — com Docker e Nginx
-// const API_URL = '/api'
+//const API_URL = '' puxada de api.js devido função concetrador de fetchs
+//(Exceto login.js)
 
 // ===================================================
-// VERIFICAÇÃO DE AUTENTICAÇÃO
+// VERIFICAÇÃO DE AUTENTICAÇÃO e CONFIGURAÇÃO BASEADA NO PERFIL
 // ===================================================
 
-// tenta pegar o token e os dados do usuário
-// que foram salvos no localStorage durante o login
-const token = localStorage.getItem('token')
-const usuarioLogado = JSON.parse(localStorage.getItem('usuario') || 'null')
+//!!não é mais necessario verificar o token manualmente, o fetchAutenticado já cuida disso!!
+// verificarAutenticacao() busca o role do backend
+// false = não requer admin — qualquer logado acessa
+let usuarioLogado = null
 
-// se não tiver token, manda para o login
-if (!token || !usuarioLogado) {
-  window.location.href = 'login.html'
-}
+verificarAutenticacao(false).then(usuario => {
+  if (!usuario) return // já redirecionou
+  usuarioLogado = usuario
+  nomeUsuario.textContent = `👤 ${usuario.username}`
+
+  // configura a interface baseado no role REAL do token
+  if (usuario.role !== 'admin') {
+    btnNovo.style.display = 'none'
+    colunaAcoes.style.display = 'none'
+  }
+
+  // carrega os dados após confirmar autenticação
+  carregarUsuarios()
+})
+
 
 // ===================================================
 // REFERÊNCIAS AOS ELEMENTOS DO HTML
@@ -33,20 +41,6 @@ const btnNovo = document.getElementById('btnNovo')
 const btnSair = document.getElementById('btnSair')
 const nomeUsuario = document.getElementById('nomeUsuario')
 const colunaAcoes = document.getElementById('colunaAcoes')
-
-// ===================================================
-// CONFIGURAÇÃO BASEADA NO PERFIL
-// ===================================================
-
-// exibe o nome do usuário logado na navbar
-nomeUsuario.textContent = `👤 ${usuarioLogado.username}`
-
-// se não for admin, esconde o botão de novo usuário
-// e a coluna de ações
-if (usuarioLogado.role !== 'admin') {
-  btnNovo.style.display = 'none'
-  colunaAcoes.style.display = 'none'
-}
 
 // ===================================================
 // FUNÇÕES AUXILIARES
@@ -84,22 +78,10 @@ function formatarData(dataString) {
 
 async function carregarUsuarios() {
   try {
-
-    const resposta = await fetch(`${API_URL}/usuarios`, {
+    
+    const resposta = await fetchAutenticado(`${API_URL}/usuarios`, {
       method: 'GET',
-      headers: {
-        // envia o token em toda requisição protegida
-        'Authorization': `Bearer ${token}`
-      }
     })
-
-    // se o token expirou ou é inválido
-    if (resposta.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('usuario')
-      window.location.href = 'login.html'
-      return
-    }
 
     const dados = await resposta.json()
 
@@ -190,11 +172,8 @@ async function excluirUsuario(id, username) {
 
   try {
 
-    const resposta = await fetch(`${API_URL}/usuarios/${id}`, {
+    const resposta = await fetchAutenticado(`${API_URL}/usuarios/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
     })
 
     const dados = await resposta.json()
@@ -218,22 +197,9 @@ async function excluirUsuario(id, username) {
 // LOGOUT
 // ===================================================
 
-btnSair.addEventListener('click', async (e) => {
+btnSair.addEventListener('click', (e) => {
   e.preventDefault()
-
-  try {
-    // avisa o backend para registrar o logout no log
-    await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-  } catch (erro) {
-    // mesmo se falhar, faz o logout no frontend
-  } finally {
-    localStorage.removeItem('token')
-    localStorage.removeItem('usuario')
-    window.location.href = 'login.html'
-  }
+  fazerLogout() // função do api.js
 })
 
 // ===================================================
