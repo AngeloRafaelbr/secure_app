@@ -24,4 +24,4 @@ RUN mkdir -p logs backups
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node scripts/criarAdmin.js && node server.js"]
