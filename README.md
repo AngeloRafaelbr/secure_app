@@ -1,16 +1,16 @@
 # 🔒 SecureApp
 
-Sistema web seguro de gerenciamento de usuários com autenticação JWT, política de senha, logs de auditoria, backup e restore do banco de dados e comunicação criptografada via HTTPS.
+Sistema web seguro de gerenciamento de usuários com autenticação JWT via cookie HttpOnly, política de senha, logs de auditoria, backup e restore do banco de dados, sistemas integrados e comunicação criptografada via HTTPS.
 
 Desenvolvido como projeto acadêmico da disciplina de Segurança da Informação — UNINASSAU 2026.1.
 
-> **Versão:** `1.0D`
-> 
+> **Versão:** `1.6DL`
+>
 > | Sufixo | Significado |
 > |---|---|
 > | `D` | Testada rodando em Docker |
 > | `L` | Testada rodando localmente |
-> | `DL` ou `LD` | Testada em ambos os ambientes |
+> | `DL` | Testada em ambos os ambientes |
 
 ---
 
@@ -22,8 +22,8 @@ Desenvolvido como projeto acadêmico da disciplina de Segurança da Informação
 - [Pré-requisitos](#pré-requisitos)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Instalação e configuração](#instalação-e-configuração)
-- [Rodando em desenvolvimento](#rodando-em-desenvolvimento)
-- [Migrando do Docker para desenvolvimento local](#Migrando-do-Docker-para-desenvolvimento-local)
+- [Alternando entre ambientes](#alternando-entre-ambientes)
+- [Rodando em desenvolvimento local](#rodando-em-desenvolvimento-local)
 - [Rodando com Docker](#rodando-com-docker)
 - [Primeiro acesso](#primeiro-acesso)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
@@ -31,11 +31,12 @@ Desenvolvido como projeto acadêmico da disciplina de Segurança da Informação
 - [Endpoints da API](#endpoints-da-api)
 - [Logs do sistema](#logs-do-sistema)
 - [Backup e Restore](#backup-e-restore)
+- [Sistemas Integrados](#sistemas-integrados)
 - [Endpoint Protection](#endpoint-protection)
-- [Migração para produção-Passagem Para VM)](#migração-para-produção-passagem-para-vm)
+- [Migração para produção — VM Debian](#migração-para-produção--vm-debian)
 - [Scripts úteis](#scripts-úteis)
 - [Problemas comuns](#problemas-comuns)
-- [Primeiro upload para o GIT](#primeiro-upload-para-o-git)
+- [Git — o que sobe e o que não sobe](#git--o-que-sobe-e-o-que-não-sobe)
 
 ---
 
@@ -45,7 +46,7 @@ O SecureApp é um microsserviço de autenticação e auditoria de acessos. Ele c
 
 **Casos de uso:**
 - **Intranet corporativa** — sistema interno de controle de usuários e acessos
-- **Microsserviço de autenticação** — outros sistemas consultam o SecureApp para autenticar usuários via token JWT
+- **Microsserviço de autenticação** — outros sistemas consultam o SecureApp para validar tokens JWT e registrar autenticações, sem precisar reimplementar toda a lógica de segurança
 
 ---
 
@@ -59,57 +60,67 @@ O SecureApp é um microsserviço de autenticação e auditoria de acessos. Ele c
 
 ### Autenticação e Segurança
 - Login com validação de credenciais
-- Tokens JWT com expiração de 8 horas
-- Bloqueio automático por 10 minutos após 5 tentativas falhas
+- Token JWT armazenado em cookie HttpOnly (não acessível via JavaScript — protege contra XSS)
+- Expiração do token em 8 horas
+- Bloqueio automático por 10 minutos após 5 tentativas de login falhas
 - Política de senha com regras de complexidade
 - Verificação das últimas 3 senhas para evitar reutilização
 - Armazenamento de senhas com hash bcrypt (custo 12)
+- Controle de perfis (admin e usuário comum) verificado no backend a cada requisição
 
 ### Backup e Restore
 - Backup manual via botão na interface web
-- Backup agendado com configuração por interface visual
+- Backup agendado com interface visual (checkboxes de dias da semana + horário, ou calendário para data específica)
 - Restore do banco a partir de arquivo de backup selecionado
 - Listagem e exclusão de backups gerados
 - Persistência em volume Docker
 
+### Sistemas Integrados
+- Cadastro de sistemas externos com geração automática de `api_key`
+- Consulta de nível de acesso em tempo real (Pull): o SecureApp consulta cada sistema cadastrado ao abrir o perfil do usuário
+- Status online/offline de cada sistema integrado
+- Histórico de autenticações: registro de quem se autenticou, quando e para qual sistema
+- Endpoint `POST /auth/verificar-token` para sistemas externos validarem tokens JWT
+
 ### Logs de Auditoria
 - Registro em arquivo de todos os eventos do sistema
 - Visualização dos logs pela interface web
-- Eventos registrados: cadastro, alteração, exclusão, falhas de login, bloqueios, backup, restore
+- Eventos registrados: cadastro, alteração, exclusão, falhas de login, bloqueios, backup, restore, autenticações externas
 
 ### Comunicação Segura
-- HTTPS com certificado SSL
+- HTTPS com certificado SSL auto-assinado (OpenSSL RSA 2048)
 - HTTP redirecionado automaticamente para HTTPS
 
 ---
 
 ## Stack tecnológica
 
-| Camada | Tecnologia | Versão |
+| Camada | Tecnologia | Versão / Detalhes |
 |---|---|---|
-| Frontend | HTML5 + CSS3 + JavaScript puro | — |
+| Frontend | HTML5 + CSS3 + JavaScript puro | Sem framework |
 | Backend | Node.js + Express.js | Node 20 LTS |
 | Banco de dados | MySQL | 8.0 |
-| Autenticação | JWT (jsonwebtoken) | — |
-| Hash de senha | bcryptjs | — |
+| Autenticação | JWT via cookie HttpOnly | jsonwebtoken |
+| Hash de senha | bcryptjs | custo 12 |
 | Logs | Winston | — |
 | Agendamento | node-cron | — |
-| Servidor web | Nginx | Alpine |
-| Containerização | Docker + Docker Compose | — |
+| Servidor web | Nginx | Proxy reverso + HTTPS |
+| Containerização | Docker + Docker Compose | 3 containers |
 | SSL/TLS | Certificado auto-assinado | OpenSSL RSA 2048 |
+| SO da VM | Debian GNU/Linux | 13.4.0 — VirtualBox |
 
 ---
 
 ## Pré-requisitos
 
-### Para rodar com Docker (recomendado)
+### Para rodar com Docker (recomendado para produção e teste final)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (Windows/Mac)
 - [Docker Engine + Docker Compose](https://docs.docker.com/engine/install/) (Linux/Debian)
 - [Git](https://git-scm.com)
 
-### Para rodar em desenvolvimento (sem Docker)
+### Para rodar em desenvolvimento local (recomendado para desenvolvimento ativo)
 - [Node.js 20 LTS](https://nodejs.org) ou superior
-- [MySQL 8.0](https://dev.mysql.com/downloads/) instalado localmente
+- MySQL 8.0 **rodando em Docker** (só o container do banco) — veja a seção [Rodando em desenvolvimento local](#rodando-em-desenvolvimento-local)
 - [Git](https://git-scm.com)
 
 ### Verificar instalações
@@ -141,40 +152,48 @@ meu-app/
 │   ├── css/
 │   │   └── style.css              # estilos globais compartilhados
 │   ├── js/
-│   │   ├── login.js               # lógica da tela de login
-│   │   ├── usuarios.js            # lógica da listagem de usuários
-│   │   ├── usuarios-novo.js       # lógica do cadastro
-│   │   ├── usuarios-editar.js     # lógica da edição
-│   │   ├── backup.js              # lógica do backup e restore
-│   │   └── logs.js                # lógica da visualização de logs
+│   │   ├── config.js              # ⚠️ URL da API centralizada — MUDE AQUI ao trocar de ambiente
+│   │   ├── api.js                 # fetchAutenticado, verificarAutenticacao, fazerLogout
+│   │   ├── login.js
+│   │   ├── usuarios.js
+│   │   ├── usuarios-novo.js
+│   │   ├── usuarios-editar.js
+│   │   ├── backup.js
+│   │   ├── logs.js
+│   │   └── sistemas.js            # lógica da tela de sistemas integrados
 │   ├── login.html
 │   ├── usuarios.html
 │   ├── usuarios-novo.html
 │   ├── usuarios-editar.html
 │   ├── backup.html
 │   ├── logs.html
+│   ├── sistemas.html              # tela de sistemas integrados
 │   └── Dockerfile                 # imagem Nginx para servir os HTMLs
 ├── backend/
 │   ├── middleware/
-│   │   └── auth.js                # verificação de token JWT
+│   │   └── auth.js                # lê token do cookie HttpOnly (fallback: header Authorization)
 │   ├── routes/
-│   │   ├── auth.js                # endpoints de login e logout
-│   │   ├── usuarios.js            # endpoints CRUD de usuários
-│   │   ├── backup.js              # endpoints de backup e restore
-│   │   └── logs.js                # endpoints de visualização de logs
+│   │   ├── auth.js                # login, logout, /me, verificar-token
+│   │   ├── usuarios.js            # CRUD de usuários
+│   │   ├── backup.js              # backup e restore
+│   │   ├── logs.js                # visualização de logs
+│   │   └── sistemas.js            # CRUD de sistemas, consulta de acessos, autenticações
 │   ├── scripts/
 │   │   └── criarAdmin.js          # script para criar o admin inicial
 │   ├── utils/
 │   │   ├── logger.js              # sistema de logs com Winston
-│   │   └── senha.js               # validação e hash de senha (bcrypt)
+│   │   └── senha.js               # validação, hash bcrypt, histórico de senhas
 │   ├── logs/                      # gerado automaticamente pela aplicação
 │   ├── backups/                   # gerado automaticamente pela aplicação
-│   ├── banco.sql                  # script SQL de criação das tabelas
+│   ├── banco.sql                  # script SQL completo com todas as tabelas
 │   ├── database.js                # pool de conexão com o MySQL
 │   ├── server.js                  # ponto de entrada da aplicação
 │   ├── .env.example               # modelo do arquivo .env
-│   ├── .dockerignore              # arquivos ignorados pelo Docker
+│   ├── .dockerignore
 │   └── Dockerfile                 # imagem Node.js do backend
+├── sistemas-fake/
+│   ├── sistema-financeiro.js      # app-fake — porta 4000
+│   └── sistema-medico.js          # app-fake — porta 4001
 ├── ssl/
 │   ├── cert.crt                   # certificado público SSL
 │   └── cert.key                   # chave privada SSL (não commitada)
@@ -190,6 +209,8 @@ meu-app/
 
 ## Instalação e configuração
 
+Estes passos são necessários **uma única vez**, independente de qual ambiente você vai usar.
+
 ### 1. Clonar o repositório
 
 ```bash
@@ -197,60 +218,53 @@ git clone https://github.com/AngeloRafaelbr/secure-app.git
 cd secure-app
 ```
 
-### 2. Configurar as variáveis de ambiente⚠️
-#ABAIXO É APRESENADO MODELO DOS .env NECESSÁRIOS!
+### 2. Configurar as variáveis de ambiente
 
-**Passo 2.1 — Arquivo `.env` na raiz** (usado pelo Docker Compose):
+> ⚠️ São necessários **dois** arquivos `.env`: um na raiz (usado pelo Docker Compose) e um dentro de `backend/` (usado pelo Node.js).
 
-#Comando para copiar o .env modelo disponibilizado (ou crie arquivo e copie e cole daqui)
+**Passo 2.1 — Arquivo `.env` na raiz** (Docker Compose):
+
 ```bash
-# copie o modelo
 cp .env.example .env
-
-# abra e edite com suas configurações
-nano .env
+nano .env   # ou abra no VS Code
 ```
 
-ℹ️Conteúdo do `.env` da raiz(usado pelo Docker Compose):
+Conteúdo:
 
 ```bash
-# Banco de dados MySQL
+# Banco de dados MySQL — Docker usa essas variáveis para criar o banco
 MYSQL_ROOT_PASSWORD=SUASENHA
 MYSQL_ROOT_USER=root
 MYSQL_DATABASE=meu_app
 
-# Chave secreta para assinar tokens JWT
-# use uma string longa e aleatória em produção
+# Chave secreta para assinar tokens JWT — deve ser longa e aleatória
 JWT_SECRET=substitua-por-uma-chave-longa-e-aleatoria-aqui
-
-#A senha aqui precisa ser **a mesma** do `.env` de /backend — porque é o mesmo banco.
-#sobe o MySQL com essa senha - Docker lê isso
-#Este .env é usado para produção em docker, não para desenvolvimento local. Para desenvolvimento local, rodando o node server.js, use o .env de /backend.
 ```
 
-**Passo 2.2 — Arquivo `backend/.env`** (usado pelo Node.js):
+> ℹ️ Este arquivo é lido pelo Docker Compose para subir o container MySQL e injetar variáveis no backend. **Não é usado** quando o backend roda diretamente com `node server.js`.
 
-#Comando para copiar o .env modelo disponibilizado (ou crie arquivo e copie e cole daqui)
+**Passo 2.2 — Arquivo `backend/.env`** (Node.js):
+
 ```bash
 cd backend
 cp .env.example .env
-nano .env
+nano .env   # ou abra no VS Code
 cd ..
 ```
 
-ℹ️Conteúdo do `backend/.env` (usado pelo Node.js):
+Conteúdo:
 
 ```bash
 # Banco de dados
-# use "localhost" em desenvolvimento sem Docker
-# use "mysql" quando rodar com Docker
-DB_HOST=mysql
+# Use "localhost" para desenvolvimento local
+# Use "mysql" quando rodar tudo com Docker (o docker-compose.yml sobrescreve automaticamente)
+DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=SUASENHA
+DB_PASSWORD=SUASENHA    # mesma senha do .env da raiz
 DB_NAME=meu_app
 
-# JWT — deve ser igual ao JWT_SECRET do .env da raiz
+# JWT — deve ser exatamente igual ao JWT_SECRET do .env da raiz
 JWT_SECRET=substitua-por-uma-chave-longa-e-aleatoria-aqui
 
 # Porta do servidor Node.js
@@ -260,11 +274,13 @@ PORT=3000
 TZ=America/Recife
 ```
 
-> ⚠️ **Atenção:** a `JWT_SECRET` deve ser **exatamente igual** nos dois arquivos `.env`.
-
-> ⚠️ **Segurança:** nunca compartilhe ou publique os arquivos `.env`. Eles estão no `.gitignore` por esse motivo.
+> ⚠️ `JWT_SECRET` **deve ser idêntica** nos dois arquivos `.env`.
+> ⚠️ `DB_PASSWORD` **deve ser idêntica** nos dois arquivos `.env`.
+> ⚠️ Nunca suba os arquivos `.env` para o Git — eles estão no `.gitignore`.
 
 ### 3. Gerar o certificado SSL
+
+Necessário apenas para rodar com Docker (o Nginx exige o certificado para subir).
 
 ```bash
 # na raiz do projeto
@@ -277,61 +293,69 @@ openssl req -x509 -nodes -days 365 \
   -subj "/CN=meuapp/O=MeuApp/C=BR"
 ```
 
-Verifique se os arquivos foram gerados:
+Verifique:
 
 ```bash
 ls -la ssl/
 # deve aparecer cert.crt e cert.key
 ```
 
-> ℹ️ Se o OpenSSL não estiver instalado no Windows, baixe em:
-> https://slproweb.com/products/Win32OpenSSL.html (versão Light é suficiente)
+> ℹ️ No Windows sem OpenSSL instalado: baixe em https://slproweb.com/products/Win32OpenSSL.html (versão Light é suficiente).
 
 ---
 
-## Migrando do Docker para desenvolvimento local
+## Alternando entre ambientes
 
-Use essa abordagem quando quiser desenvolver ativamente e ver
-as mudanças refletindo imediatamente, sem precisar rebuildar
-os containers a cada alteração.
+O único arquivo que muda ao trocar de ambiente é `frontend/js/config.js`:
 
-### Por que migrar para local durante o desenvolvimento?
-Com Docker:
-altera o código → docker compose down
-→ docker compose up -d --build
-→ aguarda o rebuild (minutos)
-→ testa
-→ repete...
-Local:
-altera o código → salva o arquivo → testa
-(imediato)
+```js
+// DESENVOLVIMENTO LOCAL — Node.js rodando diretamente
+const API_URL = 'http://localhost:3000'
 
-### O que muda
+// DOCKER — Nginx fazendo proxy para o backend
+// const API_URL = '/api'
+```
 
-| Componente | Docker | Local |
+Comente/descomente a linha correspondente ao ambiente desejado. **Todos os outros arquivos JS** importam `API_URL` deste arquivo — nada mais precisa ser alterado.
+
+> ⚠️ **Nunca suba `config.js` com `API_URL = 'http://localhost:3000'`** para o GitHub. A aplicação não funcionará em Docker com esse valor.
+
+---
+
+## Rodando em desenvolvimento local
+
+Use essa opção para desenvolver ativamente. Alterações no código refletem imediatamente — sem precisar rebuildar containers.
+
+```
+Com Docker completo:
+  altera código → docker compose down → docker compose up -d --build → aguarda rebuild → testa → repete...
+
+Com desenvolvimento local:
+  altera código → salva → testa (imediato)
+```
+
+| Componente | Docker completo | Desenvolvimento local |
 |---|---|---|
 | MySQL | container mysql_app | container mysql_app (só ele) |
-| Backend | container backend_app | node server.js direto |
-| Frontend | container Nginx | arquivo aberto no browser |
-| API_URL | `/api` | `http://localhost:3000` |
-| DB_HOST | `mysql` (docker-compose sobrescreve) | `localhost` (backend/.env) |
-| HTTPS | ✅ via Nginx | ❌ HTTP puro |
+| Backend | container backend_app | `node server.js` direto |
+| Frontend | container Nginx | arquivo aberto no browser / Live Server |
+| `config.js` `API_URL` | `/api` | `http://localhost:3000` |
+| `backend/.env` `DB_HOST` | sobrescrito para `mysql` | `localhost` |
+| HTTPS | ✅ via Nginx | ❌ HTTP puro (normal em dev) |
 
-### Passo a passo
-
-**1. Parar todos os containers**
+### Passo 1 — Parar todos os containers (se estiverem rodando)
 
 ```bash
 docker compose down
 ```
 
-**2. Subir apenas o MySQL**
+### Passo 2 — Subir apenas o MySQL
 
 ```bash
 docker compose up -d mysql
 ```
 
-Verifique se subiu:
+Verifique:
 
 ```bash
 docker compose ps
@@ -339,108 +363,94 @@ docker compose ps
 # mysql_app   running (healthy)
 ```
 
-**3. Confirmar o `backend/.env`**
-
-O `DB_HOST` deve estar como `localhost`:
+### Passo 3 — Confirmar `backend/.env`
 
 ```bash
 DB_HOST=localhost
 ```
 
-> ℹ️ Quando tudo roda no Docker, o `docker-compose.yml` sobrescreve
-> essa variável para `mysql` automaticamente. No desenvolvimento local
-> o `backend/.env` é lido diretamente — por isso precisa ser `localhost`.
+> ℹ️ Em Docker completo o `docker-compose.yml` sobrescreve `DB_HOST` para `mysql` automaticamente. Em desenvolvimento local o `backend/.env` é lido diretamente — por isso precisa ser `localhost`.
 
-**4. Atualizar o `API_URL` nos arquivos JS do frontend**
-
-Em todos os arquivos abaixo, mude:
+### Passo 4 — Atualizar `frontend/js/config.js`
 
 ```js
-// de
-const API_URL = '/api'
-
-// para
 const API_URL = 'http://localhost:3000'
+// const API_URL = '/api'
 ```
 
-Arquivos a alterar:
-frontend/js/login.js
-frontend/js/usuarios.js
-frontend/js/usuarios-novo.js
-frontend/js/usuarios-editar.js
-frontend/js/backup.js
-frontend/js/logs.js
-
-> ⚠️ Sem essa mudança o frontend não consegue chamar o backend,
-> pois o `/api` só funciona quando o Nginx está no meio fazendo o proxy.
-
-**5. Instalar dependências e iniciar o backend**
+### Passo 5 — Instalar dependências do backend (primeira vez)
 
 ```bash
 cd backend
 npm install
+cd ..
+```
+
+### Passo 6 — Iniciar o backend
+
+```bash
+cd backend
 node server.js
 ```
 
 Esperado:
+```
 Banco de dados conectado com sucesso!
 Servidor rodando em http://localhost:3000
+```
 
-Confirme que o backend está respondendo:
+Confirme que está respondendo:
+```
 http://localhost:3000/health
 → { "status": "servidor rodando" }
+```
 
-**6. Abrir o frontend**
+### Passo 7 — Abrir o frontend
 
-Abra o arquivo `frontend/login.html` diretamente no browser
-ou use a extensão **Live Server** do VS Code para atualização
-automática ao salvar arquivos.
+Abra `frontend/login.html` diretamente no browser ou use a extensão **Live Server** do VS Code (serve os arquivos em `http://127.0.0.1:5500` com recarregamento automático ao salvar).
 
-> ℹ️ Sem o Nginx o frontend não tem um servidor próprio —
-> você acessa os arquivos HTML diretamente. O Live Server
-> resolve isso servindo os arquivos em `http://127.0.0.1:5500`.
+### Passo 8 — (Opcional) Subir os apps-fake de sistemas integrados
+
+Se quiser testar a funcionalidade de sistemas integrados:
+
+```bash
+# em terminais separados
+node sistemas-fake/sistema-financeiro.js   # porta 4000
+node sistemas-fake/sistema-medico.js       # porta 4001
+```
 
 ---
 
-### Voltando para o Docker após o desenvolvimento
+### Voltando para Docker após o desenvolvimento
 
-Quando a funcionalidade estiver pronta e testada localmente,
-siga esses passos antes de commitar no GitHub:
+Antes de commitar, reverta:
 
-**1. Reverter o `API_URL` nos arquivos JS**
+**1. `frontend/js/config.js`:**
 
 ```js
-// de
-const API_URL = 'http://localhost:3000'
-
-// para
+// const API_URL = 'http://localhost:3000'
 const API_URL = '/api'
 ```
 
-**2. Confirmar o `backend/.env`**
-
-```bash
-# pode deixar localhost — o docker-compose.yml
-# sobrescreve para "mysql" automaticamente
-DB_HOST=localhost
-```
-
-**3. Parar o MySQL local**
+**2. Parar o MySQL:**
 
 ```bash
 docker compose down
 ```
 
-**4. Subir tudo no Docker**
+**3. Subir tudo no Docker:**
 
 ```bash
 docker compose up -d --build
 ```
 
-**5. Testar no browser**
-https://localhost
+**4. Testar:**
 
-**6. Se tudo estiver funcionando — commitar**
+```
+https://localhost
+```
+
+**5. Se estiver funcionando — commitar:**
 
 ```bash
 git add .
@@ -450,45 +460,27 @@ git push
 
 ---
 
-### Observações importantes
-
-> ⚠️ **Nunca commite com `API_URL = 'http://localhost:3000'`**
-> A aplicação não funcionará no Docker com esse valor.
-
-> ⚠️ **HTTPS não funciona em desenvolvimento local**
-> O certificado SSL é gerenciado pelo Nginx que só roda no Docker.
-> Em desenvolvimento o acesso é via HTTP puro — isso é normal e esperado.
-
-> ℹ️ **Os dados do banco persistem entre os ambientes**
-> O volume Docker `meu-app_mysql_data` mantém os dados independente
-> de estar rodando tudo no Docker ou só o MySQL.
-> Não é necessário recriar tabelas ou o admin ao alternar entre os ambientes.
-
-
----
-
 ## Rodando com Docker
 
-> ✅ Opção recomendada. Sobe o banco, backend e frontend com um único comando.
+> ✅ Opção recomendada para testes completos e produção. HTTPS funciona apenas aqui.
 
-### Passo 1 — Verificar pré-requisitos
+### Pré-requisitos verificados
 
-Certifique-se que completou a seção [Instalação e configuração](#instalação-e-configuração):
+Antes de continuar, confirme que completou a seção [Instalação e configuração](#instalação-e-configuração):
+
 - ✅ `.env` da raiz configurado
-- ✅ `backend/.env` configurado
+- ✅ `backend/.env` configurado com `DB_HOST=localhost` (o docker-compose.yml sobrescreve para `mysql`)
 - ✅ `ssl/cert.crt` e `ssl/cert.key` gerados
+- ✅ `frontend/js/config.js` com `API_URL = '/api'`
 
-### Passo 2 — Subir os containers
+### Passo 1 — Subir os containers
 
 ```bash
-# na raiz do projeto (onde está o docker-compose.yml)
+# na raiz do projeto
 docker compose up -d --build
 ```
 
-Na primeira execução o processo demora mais pois:
-- Baixa as imagens base (Node.js, MySQL, Nginx)
-- Instala as dependências do Node.js
-- Constrói as imagens customizadas
+Na primeira execução o processo demora mais: baixa imagens base, instala dependências do Node.js e constrói as imagens.
 
 Acompanhe o progresso:
 
@@ -496,15 +488,15 @@ Acompanhe o progresso:
 docker compose logs -f
 ```
 
-Aguarde aparecer as mensagens:
+Aguarde:
 ```
 backend_app  | Banco de dados conectado com sucesso!
 backend_app  | Servidor rodando em http://localhost:3000
 ```
 
-Pressione `Ctrl+C` para sair dos logs sem parar os containers.
+`Ctrl+C` sai dos logs sem parar os containers.
 
-### Passo 3 — Verificar os containers
+### Passo 2 — Verificar os containers
 
 ```bash
 docker compose ps
@@ -518,19 +510,20 @@ backend_app     running
 frontend_app    running
 ```
 
-> Se algum container não estiver `running`, verifique os logs:
-> `docker compose logs NOME_DO_CONTAINER`
+> Se algum container não estiver `running`: `docker compose logs NOME_DO_CONTAINER`
 
-### Passo 4 — Criar as tabelas no banco
+### Passo 3 — Criar as tabelas no banco
+
+> ⚠️ Substitua `SUASENHA` pela senha definida em `MYSQL_ROOT_PASSWORD` no seu `.env`.
 
 ```bash
-docker exec -i mysql_app mysql -u root -psenha123 meu_app < backend/banco.sql
+docker exec -i mysql_app mysql -u root -pSUASENHA meu_app < backend/banco.sql
 ```
 
-Verifique se as tabelas foram criadas corretamente:
+Verifique:
 
 ```bash
-docker exec -it mysql_app mysql -u root -psenha123 meu_app -e "SHOW TABLES;"
+docker exec -it mysql_app mysql -u root -pSUASENHA meu_app -e "SHOW TABLES;"
 ```
 
 Resultado esperado:
@@ -538,13 +531,15 @@ Resultado esperado:
 +----------------------+
 | Tables_in_meu_app    |
 +----------------------+
+| autenticacoes        |
 | backup_agendamentos  |
 | historico_senhas     |
+| sistemas             |
 | usuarios             |
 +----------------------+
 ```
 
-### Passo 5 — Criar o usuário administrador
+### Passo 4 — Criar o usuário administrador
 
 ```bash
 docker exec -it backend_app node scripts/criarAdmin.js
@@ -559,9 +554,7 @@ Senha:    Admin@12345!
 ⚠️  Troque a senha após o primeiro login!
 ```
 
-### Passo 6 — Acessar a aplicação
-
-Abra o browser e acesse:
+### Passo 5 — Acessar a aplicação
 
 ```
 # na mesma máquina
@@ -571,84 +564,24 @@ https://localhost
 https://IP_DO_SERVIDOR
 ```
 
-> O browser exibirá um aviso de certificado auto-assinado.
-> Clique em **Avançar** → **Ir para o site** (ou equivalente no seu browser).
-> Isso é esperado para certificados auto-assinados em rede local.
+> O browser exibirá um aviso de certificado auto-assinado. Clique em **Avançar** → **Ir para o site**. Isso é esperado em redes locais com certificado auto-assinado.
 
----
+### Passo 6 — (Opcional) Subir os apps-fake
 
-## Rodando em desenvolvimento
-
-> Use essa opção se quiser rodar sem Docker, com MySQL instalado localmente.
-
-### Passo 1 — Configurar o `backend/.env` para desenvolvimento
+Para testar a integração com sistemas externos, abra terminais extras e execute:
 
 ```bash
-DB_HOST=localhost    # não "mysql" — conecta no MySQL local
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=sua_senha_mysql_local
-DB_NAME=meu_app
-JWT_SECRET=sua-chave-secreta
-PORT=3000
-TZ=America/Recife
+node sistemas-fake/sistema-financeiro.js   # porta 4000
+node sistemas-fake/sistema-medico.js       # porta 4001
 ```
 
-### Passo 2 — Criar o banco de dados
-
-```bash
-mysql -u root -p
-```
-
-```sql
-CREATE DATABASE meu_app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-```
-
-### Passo 3 — Instalar dependências do backend
-
-```bash
-cd backend
-npm install
-```
-
-### Passo 4 — Criar as tabelas
-
-```bash
-mysql -u root -p meu_app < banco.sql
-```
-
-### Passo 5 — Criar o usuário admin
-
-```bash
-node scripts/criarAdmin.js
-```
-
-### Passo 6 — Iniciar o servidor
-
-```bash
-node server.js
-```
-
-Resultado esperado:
-```
-Banco de dados conectado com sucesso!
-Servidor rodando em http://localhost:3000
-```
-
-### Passo 7 — Abrir o frontend
-
-Abra o arquivo `frontend/login.html` diretamente no browser
-ou use a extensão **Live Server** do VS Code.
-
-> ⚠️ Em desenvolvimento o acesso é via `http://localhost` sem HTTPS.
-> Para HTTPS completo é necessário rodar com Docker e Nginx.
+> Os apps-fake simulam sistemas externos que respondem consultas do SecureApp com os níveis de acesso dos usuários.
 
 ---
 
 ## Primeiro acesso
 
-Após a instalação, faça login com as credenciais iniciais do admin:
+Faça login com as credenciais iniciais do admin:
 
 ```
 Username: admin
@@ -656,15 +589,13 @@ Senha:    Admin@12345!
 ```
 
 > ⚠️ **Troque a senha imediatamente após o primeiro login!**
-> Acesse: Usuários → Editar → preencha Nova Senha
+> Acesse: Usuários → Editar → Nova Senha
 
 ### Política de senha obrigatória
 
-A nova senha deve atender todos os critérios:
-
 | Critério | Exemplo |
 |---|---|
-| Mínimo 10 caracteres | `MinhaSenh@2026` tem 14 ✅ |
+| Mínimo 10 caracteres | `MinhaSenh@2026` (14 chars) ✅ |
 | Pelo menos uma maiúscula | `M` ✅ |
 | Pelo menos uma minúscula | `inha` ✅ |
 | Pelo menos um número | `2026` ✅ |
@@ -675,23 +606,23 @@ A nova senha deve atender todos os critérios:
 
 ## Variáveis de ambiente
 
-### `.env` da raiz
+### `.env` da raiz (Docker Compose)
 
-| Variável | Descrição | Valor padrão |
+| Variável | Descrição | Quem lê |
 |---|---|---|
-| `MYSQL_ROOT_PASSWORD` | Senha do root do MySQL | — |
-| `MYSQL_ROOT_USER` | Usuário do MySQL | `root` |
-| `MYSQL_DATABASE` | Nome do banco de dados | `meu_app` |
-| `JWT_SECRET` | Chave secreta para assinar tokens JWT | — |
+| `MYSQL_ROOT_PASSWORD` | Senha do root do MySQL | Docker Compose → MySQL |
+| `MYSQL_ROOT_USER` | Usuário do MySQL | Docker Compose → MySQL |
+| `MYSQL_DATABASE` | Nome do banco de dados | Docker Compose → MySQL |
+| `JWT_SECRET` | Chave secreta para tokens JWT | Docker Compose → backend |
 
-### `backend/.env`
+### `backend/.env` (Node.js)
 
-| Variável | Desenvolvimento | Docker |
+| Variável | Desenvolvimento local | Docker |
 |---|---|---|
-| `DB_HOST` | `localhost` | `mysql` |
+| `DB_HOST` | `localhost` | sobrescrito para `mysql` pelo docker-compose.yml |
 | `DB_PORT` | `3306` | `3306` |
 | `DB_USER` | `root` | `root` |
-| `DB_PASSWORD` | sua senha local | mesma do `.env` raiz |
+| `DB_PASSWORD` | mesma do `.env` raiz | mesma do `.env` raiz |
 | `DB_NAME` | `meu_app` | `meu_app` |
 | `JWT_SECRET` | mesma do `.env` raiz | mesma do `.env` raiz |
 | `PORT` | `3000` | `3000` |
@@ -703,44 +634,63 @@ A nova senha deve atender todos os critérios:
 
 ### Tabelas
 
-**`usuarios`**
+**`usuarios`** — dados dos usuários do sistema
 ```
-id               → identificador único (auto increment)
-username         → nome de usuário (único)
-email            → email (único)
-password_hash    → senha armazenada como hash bcrypt
-role             → perfil: 'admin' ou 'user'
+id                → identificador único (auto increment)
+username          → nome de usuário (único)
+email             → email (único) — usado como chave na integração com sistemas externos
+password_hash     → senha armazenada como hash bcrypt
+role              → perfil: 'admin' ou 'user'
 tentativas_falhas → contador de tentativas de login falhas
-bloqueado_ate    → data/hora de desbloqueio (null = não bloqueado)
-criado_em        → data de cadastro
+bloqueado_ate     → data/hora de desbloqueio (null = não bloqueado)
+criado_em         → data de cadastro
 ```
 
-**`historico_senhas`**
+**`historico_senhas`** — últimas 3 senhas de cada usuário
 ```
-id           → identificador único
-usuario_id   → referência ao usuário (FK)
+id            → identificador único
+usuario_id    → referência ao usuário (FK)
 password_hash → hash da senha anterior
-criado_em    → data em que foi usada
+criado_em     → data em que foi usada
 ```
-> Guarda as últimas 3 senhas de cada usuário para evitar reutilização.
 
-**`backup_agendamentos`**
+**`backup_agendamentos`** — agendamentos de backup
 ```
 id             → identificador único
-cron_expressao → expressão cron do agendamento
+cron_expressao → expressão cron gerada pela interface visual
 descricao      → descrição legível
+tipo           → 'recorrente' ou 'eventual'
 ativo          → 1 = ativo, 0 = pausado
 ultimo_backup  → data/hora do último backup executado
 criado_em      → data de criação do agendamento
+```
+
+**`sistemas`** — sistemas externos integrados
+```
+id        → identificador único
+nome      → nome do sistema (ex: Sistema Financeiro)
+url       → URL do endpoint de acessos (ex: http://192.168.1.x:4000/acessos)
+api_key   → chave gerada pelo SecureApp para autenticar a consulta
+ativo     → 1 = ativo, 0 = desativado
+criado_em → data de cadastro
+```
+
+**`autenticacoes`** — histórico de autenticações via sistemas externos
+```
+id             → identificador único
+usuario_id     → referência ao usuário (FK)
+sistema_id     → referência ao sistema (FK)
+ip_origem      → IP de onde partiu a requisição
+autenticado_em → data/hora da autenticação
 ```
 
 ### Recriar o banco do zero
 
 ```bash
 # com Docker
-docker exec -i mysql_app mysql -u root -psenha123 meu_app < backend/banco.sql
+docker exec -i mysql_app mysql -u root -pSUASENHA meu_app < backend/banco.sql
 
-# sem Docker
+# sem Docker (desenvolvimento local)
 mysql -u root -p meu_app < backend/banco.sql
 ```
 
@@ -748,21 +698,18 @@ mysql -u root -p meu_app < backend/banco.sql
 
 ## Endpoints da API
 
-> Todos os endpoints protegidos exigem o header:
-> `Authorization: Bearer SEU_TOKEN_JWT`
+> Endpoints com `✅ JWT` leem o token do **cookie HttpOnly** enviado automaticamente pelo browser. O fallback para o header `Authorization: Bearer TOKEN` existe para sistemas externos que não usam cookies.
 
 ### Autenticação
 
 | Método | Endpoint | Descrição | Protegido |
 |---|---|---|---|
-| POST | `/auth/login` | Fazer login | ❌ |
-| POST | `/auth/logout` | Registrar logout | ✅ JWT |
-Obs.: O login é a porta de entrada — é justamente ele que gera o token. Não faz sentido exigir o token antes de gerá-lo.
-✅ Não retorna dados sensíveis sem credenciais corretas
-✅ Tem bloqueio após 5 tentativas falhas
-✅ Fail2Ban bloqueia IPs suspeitos
-✅ HTTPS criptografa a comunicação
-✅ bcrypt protege as senhas no banco
+| POST | `/auth/login` | Fazer login — define cookie JWT | ❌ |
+| POST | `/auth/logout` | Logout — apaga o cookie JWT | ✅ JWT |
+| GET | `/auth/me` | Retorna dados do usuário logado | ✅ JWT |
+| POST | `/auth/verificar-token` | Valida token — usado por sistemas externos | ✅ api_key |
+
+> ℹ️ O `/auth/login` não exige token por design — é exatamente ele que gera o token. Proteções: bloqueio após 5 falhas, Fail2Ban no SSH, HTTPS e bcrypt no banco.
 
 **Exemplo de login:**
 ```bash
@@ -779,7 +726,7 @@ curl -X POST https://localhost/api/auth/login \
 | GET | `/usuarios` | Listar todos | ✅ JWT |
 | GET | `/usuarios/:id` | Buscar um | ✅ JWT |
 | POST | `/usuarios` | Criar | ✅ Admin |
-| PUT | `/usuarios/:id` | Editar | ✅ JWT |
+| PUT | `/usuarios/:id` | Editar dados/senha | ✅ JWT |
 | DELETE | `/usuarios/:id` | Excluir | ✅ Admin |
 
 ### Backup
@@ -794,6 +741,17 @@ curl -X POST https://localhost/api/auth/login \
 | GET | `/backup/agendamentos` | Listar agendamentos | ✅ Admin |
 | DELETE | `/backup/agendamentos/:id` | Remover agendamento | ✅ Admin |
 
+### Sistemas Integrados
+
+| Método | Endpoint | Descrição | Protegido |
+|---|---|---|---|
+| GET | `/sistemas` | Listar sistemas | ✅ Admin |
+| POST | `/sistemas` | Cadastrar sistema | ✅ Admin |
+| PUT | `/sistemas/:id` | Editar sistema | ✅ Admin |
+| DELETE | `/sistemas/:id` | Excluir sistema | ✅ Admin |
+| GET | `/sistemas/:id/status` | Verificar se está online | ✅ Admin |
+| GET | `/sistemas/acessos/:email` | Consultar acessos do usuário em todos os sistemas (pull em tempo real) | ✅ JWT |
+
 ### Logs
 
 | Método | Endpoint | Descrição | Protegido |
@@ -806,11 +764,8 @@ curl -X POST https://localhost/api/auth/login \
 | Método | Endpoint | Descrição | Protegido |
 |---|---|---|---|
 | GET | `/health` | Status do servidor | ❌ |
-Obs.:o health serve para verificar rapidamente se o servidor está rodando — sem precisar de credenciais. É usado por ferramentas de monitoramento, balanceadores de carga e pelo próprio Docker.
-✅ Retorna apenas { "status": "servidor rodando" }
-✅ Não expõe dados do banco
-✅ Não expõe configurações internas
-✅ Não permite nenhuma ação no sistema
+
+> ℹ️ O `/health` retorna apenas `{ "status": "servidor rodando" }`. Não expõe dados do banco nem configurações internas.
 
 ---
 
@@ -832,18 +787,20 @@ backend/logs/
 
 ### Eventos registrados
 
-| Evento | Nível | Requisito |
-|---|---|---|
-| Cadastro de usuário | INFO | 3.1 |
-| Alteração de dados/senha | INFO | 3.2 |
-| Exclusão de usuário | INFO | 3.3 |
-| Falha de autenticação | WARN | 3.4 |
-| Bloqueio após 5 falhas | WARN | 3.5 |
-| Login bem-sucedido | INFO | 3.6 |
-| Logout | INFO | 3.6 |
-| Backup realizado | INFO | 3.6 |
-| Restore realizado | INFO | 3.6 |
-| Backup agendado | INFO | 3.6 |
+| Evento | Nível |
+|---|---|
+| Cadastro de usuário | INFO |
+| Alteração de dados/senha | INFO |
+| Exclusão de usuário | INFO |
+| Falha de autenticação | WARN |
+| Bloqueio após 5 falhas | WARN |
+| Login bem-sucedido | INFO |
+| Logout | INFO |
+| Backup realizado | INFO |
+| Restore realizado | INFO |
+| Agendamento de backup criado | INFO |
+| Autenticação via sistema externo | INFO |
+| Sistema externo não respondeu | WARN |
 
 ### Visualizar logs via terminal
 
@@ -856,6 +813,7 @@ docker exec -it backend_app tail -n 100 /app/logs/app.log
 
 # copiar para a máquina local
 docker cp backend_app:/app/logs/app.log ./app.log
+docker cp backend_app:/app/logs/erros.log ./erros.log
 ```
 
 ---
@@ -877,33 +835,39 @@ backup_2026-04-07_15-00-00.sql
 
 ### Backup agendado
 
+A interface visual elimina a necessidade de digitar expressão cron:
+
+**Backup Recorrente:**
 ```
-1. Acesse o menu Backup
-2. Preencha a expressão cron e a descrição
-3. Clique em "Salvar Agendamento"
+1. Selecione o(s) dia(s) da semana (checkboxes: Seg, Ter, Qua...)
+2. Selecione o horário (selects de hora e minuto)
+3. Clique em "Agendar Backup Recorrente"
+   → o JavaScript gera a expressão cron automaticamente
+   Ex: Segunda + 03:00 → cron: "0 3 * * 1"
+   Ex: Seg e Qua + 14:00 → cron: "0 14 * * 1,3"
 ```
 
-Exemplos de expressão cron:
+**Backup Eventual:**
+```
+1. Selecione a data no campo de data (calendário nativo do browser)
+2. Selecione o horário
+3. Marque "Repetir mensalmente" se desejar
+4. Clique em "Agendar Backup Eventual"
+   Ex: 15/05 + 14:00           → cron: "0 14 15 5 *" (executa uma vez)
+   Ex: 15/05 + 14:00 + repetir → cron: "0 14 15 * *" (todo mês no dia 15)
+```
 
-| Expressão | Executa |
-|---|---|
-| `0 2 * * *` | Todo dia às 02:00 |
-| `0 */6 * * *` | A cada 6 horas |
-| `0 3 * * 1` | Toda segunda às 03:00 |
-| `0 0 * * 0` | Todo domingo à meia-noite |
-| `0 0 1 * *` | Todo dia 1 do mês |
-
-> Os agendamentos são persistidos no banco e reativados automaticamente quando o servidor reinicia.
+> Os agendamentos são persistidos no banco e reativados automaticamente quando o servidor reinicia. Backups eventuais sem repetição são removidos do banco após executar.
 
 ### Restore
 
 ```
 1. Acesse o menu Backup
 2. Selecione o arquivo na lista "Restaurar Backup"
-3. Confirme a operação
+3. Confirme a operação (confirmação dupla)
 ```
 
-> ⚠️ O restore sobrescreve TODOS os dados atuais do banco.
+> ⚠️ O restore sobrescreve **TODOS** os dados atuais do banco.
 
 ### Gerenciar backups via terminal
 
@@ -920,19 +884,67 @@ docker cp ./backup_2026-04-07.sql backend_app:/app/backups/
 
 ---
 
-## Endpoint Protection
+## Sistemas Integrados
 
-As seguintes ferramentas devem ser instaladas na VM de produção (VM Testada foi a DEBIAN):
+O SecureApp funciona como microsserviço de autenticação. Sistemas externos consultam o SecureApp para validar tokens JWT e o SecureApp consulta os sistemas externos para mostrar o nível de acesso de cada usuário.
 
-### UFW — Firewall (autorizar ou não autorizar comunicação através das portas)
+### Arquitetura (Modelo B — Pull em tempo real)
+
+```
+Sistema externo valida token:
+  POST /auth/verificar-token
+  Header: x-api-key: CHAVE_DO_SISTEMA
+  Body: { token: "JWT_DO_USUARIO" }
+  → SecureApp confirma identidade: { valido: true, usuario: { id, username, email } }
+  → Sistema externo decide internamente o que o usuário pode fazer
+
+SecureApp consulta nível de acesso:
+  Quando o admin abre o perfil de um usuário, o SecureApp faz:
+  GET {url_do_sistema}/acessos?email=X
+  Header: x-api-key: CHAVE_GERADA_PELO_SECUREAPP
+  → Sistema responde: { email: "X", nivel: "Gerente" }
+  → SecureApp exibe o resultado — sempre em tempo real, sem cache
+```
+
+### Cadastrando um sistema
+
+```
+1. Acesse o menu Sistemas
+2. Clique em "Novo Sistema"
+3. Informe o nome e a URL do endpoint de acessos
+   Ex: http://192.168.1.x:4000/acessos
+4. Clique em "Cadastrar Sistema"
+5. ⚠️ Copie a api_key gerada — ela é exibida UMA ÚNICA VEZ
+6. Passe a api_key ao administrador do sistema externo para configurar o endpoint
+```
+
+### Apps-fake para demonstração
+
+Os apps-fake em `sistemas-fake/` simulam sistemas externos com dados hardcoded:
 
 ```bash
-# instalar e configurar
+node sistemas-fake/sistema-financeiro.js   # porta 4000
+node sistemas-fake/sistema-medico.js       # porta 4001
+```
+
+Cada app-fake expõe `GET /acessos?email=X`, valida a `x-api-key` antes de responder e loga no terminal cada consulta recebida — útil para demonstrar ao vivo que o dado partiu do sistema externo.
+
+---
+
+## Endpoint Protection
+
+Ferramentas instaladas na VM Debian de produção:
+
+### UFW — Firewall
+
+Bloqueia todo tráfego de entrada por padrão, liberando apenas as portas necessárias.
+
+```bash
 sudo apt install ufw -y
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow 22    # SSH
-sudo ufw allow 80    # HTTP (redirecionado para HTTPS)
+sudo ufw allow 80    # HTTP (redirecionado para HTTPS pelo Nginx)
 sudo ufw allow 443   # HTTPS
 sudo ufw enable
 
@@ -940,11 +952,11 @@ sudo ufw enable
 sudo ufw status verbose
 ```
 
-### Fail2Ban — Bloqueio de força bruta (Monitoramento das portas, com possível bloqueio se for suspeito)
-#No caso so foi utilizado uma jail, sshd, monitorando a porta do ssh (22)
+### Fail2Ban — Bloqueio de força bruta
+
+Monitora `/var/log/auth.log` e bane automaticamente IPs com múltiplas falhas de login SSH (jail `sshd` ativa).
 
 ```bash
-# instalar
 sudo apt install fail2ban -y
 sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
@@ -954,10 +966,11 @@ sudo fail2ban-client status
 sudo fail2ban-client status sshd
 ```
 
-### ClamAV — Antivírus (Proteção por varredura, podendo ser ativada varredura em tempo real ou automatizando por CRON)
+### ClamAV — Antivírus
+
+Scan agendado diariamente às 03:00, com logs por data e limpeza automática de logs antigos.
 
 ```bash
-# instalar
 sudo apt install clamav clamav-daemon -y
 sudo systemctl stop clamav-freshclam
 sudo freshclam
@@ -967,7 +980,7 @@ sudo systemctl start clamav-freshclam clamav-daemon
 # verificar
 sudo systemctl status clamav-daemon
 
-# agendar scan diário (editar crontab)
+# agendar scan diário
 sudo crontab -e
 ```
 
@@ -980,7 +993,7 @@ Adicionar no crontab:
 30 3 * * * find /var/log/clamav/ -name 'scan-*.log' -mtime +30 -delete
 ```
 
-### Verificar todos os serviços de uma vez
+### Verificar todos os serviços
 
 ```bash
 sudo systemctl status ufw fail2ban clamav-daemon clamav-freshclam
@@ -988,26 +1001,19 @@ sudo systemctl status ufw fail2ban clamav-daemon clamav-freshclam
 
 ---
 
-## Migração para produção-Passagem Para VM
+## Migração para produção — VM Debian
 
-### Transferir para VM Debian
-
-**Na VM Debian — instalar o Docker:**
+### 1. Instalar o Docker na VM
 
 ```bash
-# atualizar o sistema
 sudo apt update && sudo apt upgrade -y
-
-# instalar dependências
 sudo apt install -y ca-certificates curl gnupg
 
-# adicionar chave GPG do Docker
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | \
   sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# adicionar repositório oficial
 echo \
   "deb [arch=$(dpkg --print-architecture) \
   signed-by=/etc/apt/keyrings/docker.gpg] \
@@ -1015,28 +1021,27 @@ echo \
   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# instalar Docker
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin
 
-# adicionar usuário ao grupo docker
 sudo usermod -aG docker $USER
 newgrp docker
 
-# verificar
 docker -v
 docker compose version
 ```
 
-**Transferir o projeto via WinSCP ou SCP:**
+### 2. Transferir o projeto
+
+Via WinSCP (interface gráfica) ou SCP (terminal):
 
 ```bash
-# do Windows para a VM (via terminal)
-scp -r ./meu-app usuario@192.168.1.12:/home/usuario/
+# do Windows para a VM
+scp -r ./meu-app usuario@IP_DA_VM:/home/usuario/
 ```
 
-**Configurar e subir na VM:**
+### 3. Configurar e subir na VM
 
 ```bash
 cd ~/meu-app
@@ -1053,21 +1058,24 @@ openssl req -x509 -nodes -days 365 \
 nano .env
 nano backend/.env
 
+# confirmar config.js apontando para Docker
+# frontend/js/config.js → const API_URL = '/api'
+
 # subir os containers
 docker compose up -d --build
 
 # criar tabelas
-docker exec -i mysql_app mysql -u root -psenha123 meu_app < backend/banco.sql
+docker exec -i mysql_app mysql -u root -pSUASENHA meu_app < backend/banco.sql
 
 # criar admin
 docker exec -it backend_app node scripts/criarAdmin.js
 ```
 
-**Acessar de qualquer máquina na rede:**
+### 4. Acessar
 
 ```
-https://192.168.1.12
-#OU IP CORRESPONDENTE AO SEU SERVIDOR(VM)
+https://IP_DA_VM
+# ou IP correspondente ao seu servidor
 ```
 
 ---
@@ -1077,45 +1085,31 @@ https://192.168.1.12
 ### Gerenciar containers
 
 ```bash
-# subir todos os containers
-docker compose up -d
-
-# subir e reconstruir imagens
-docker compose up -d --build
-
-# parar todos os containers (mantém volumes)
-docker compose down
-
-# parar e apagar volumes (apaga dados do banco)
-docker compose down --volumes
-
-# reiniciar um container específico
-docker compose restart backend
-
-# ver status de todos os containers
-docker compose ps
+docker compose up -d              # subir todos
+docker compose up -d --build      # subir e reconstruir imagens
+docker compose down               # parar (mantém volumes/dados)
+docker compose down --volumes     # parar e apagar TODOS os dados ⚠️
+docker compose restart backend    # reiniciar um container específico
+docker compose ps                 # ver status
 ```
 
 ### Ver logs dos containers
 
 ```bash
-# todos os containers
-docker compose logs -f
-
-# container específico
-docker compose logs -f backend
-docker compose logs -f mysql
-docker compose logs -f frontend
+docker compose logs -f            # todos os containers
+docker compose logs -f backend    # só o backend
+docker compose logs -f mysql      # só o MySQL
+docker compose logs -f frontend   # só o Nginx
 ```
 
 ### Gerenciar o banco
 
 ```bash
 # acessar o MySQL interativamente
-docker exec -it mysql_app mysql -u root -psenha123 meu_app
+docker exec -it mysql_app mysql -u root -pSUASENHA meu_app
 
 # recriar as tabelas
-docker exec -i mysql_app mysql -u root -psenha123 meu_app < backend/banco.sql
+docker exec -i mysql_app mysql -u root -pSUASENHA meu_app < backend/banco.sql
 
 # recriar o admin
 docker exec -it backend_app node scripts/criarAdmin.js
@@ -1124,19 +1118,14 @@ docker exec -it backend_app node scripts/criarAdmin.js
 ### Gerenciar volumes e dados
 
 ```bash
-# listar volumes Docker
 docker volume ls
-
-# ver onde os dados do banco estão armazenados
 docker volume inspect meu-app_mysql_data
 
-# listar backups gerados
+# backups
 docker exec -it backend_app ls -lh /app/backups/
-
-# copiar backup para a máquina local
 docker cp backend_app:/app/backups/ARQUIVO.sql ./
 
-# copiar todos os logs para a máquina local
+# logs
 docker cp backend_app:/app/logs/app.log ./app.log
 docker cp backend_app:/app/logs/erros.log ./erros.log
 ```
@@ -1144,14 +1133,9 @@ docker cp backend_app:/app/logs/erros.log ./erros.log
 ### Reconstruir do zero
 
 ```bash
-# para e remove containers
 docker compose down
-
-# reconstrói sem usar cache
 docker compose build --no-cache backend
 docker compose build --no-cache frontend
-
-# sobe novamente
 docker compose up -d
 ```
 
@@ -1161,21 +1145,33 @@ docker compose up -d
 
 ### Erro: `Access denied for user ''@'...'`
 ```
-Causa:   arquivo .env não encontrado ou mal configurado
-Solução: verificar se backend/.env existe e tem DB_PASSWORD correto
+Causa:   arquivo .env não encontrado ou DB_PASSWORD incorreta
+Solução: verificar se backend/.env existe e se DB_PASSWORD bate com MYSQL_ROOT_PASSWORD
          verificar se não há espaços ao redor do = nas variáveis
 ```
 
 ### Erro: `Cannot connect to database` ou `ECONNREFUSED`
 ```
 Causa:   MySQL ainda não terminou de inicializar
-Solução: aguardar 20-30 segundos após subir os containers
+Solução: aguardar 20–30 segundos e tentar novamente
          verificar: docker compose logs mysql
+```
+
+### Frontend não consegue chamar a API em desenvolvimento local
+```
+Causa:   config.js com API_URL = '/api' ao invés de 'http://localhost:3000'
+Solução: frontend/js/config.js → const API_URL = 'http://localhost:3000'
+```
+
+### Frontend não consegue chamar a API no Docker
+```
+Causa:   config.js com API_URL = 'http://localhost:3000' ao invés de '/api'
+Solução: frontend/js/config.js → const API_URL = '/api'
 ```
 
 ### Erro no backup: `mysqldump: unknown variable ssl-mode`
 ```
-Causa:   Dockerfile usando imagem Alpine com cliente MariaDB
+Causa:   Dockerfile usando imagem Alpine com cliente MariaDB (incompatível)
 Solução: verificar se o Dockerfile do backend usa:
            FROM node:20-bookworm-slim
            RUN apt-get install -y default-mysql-client
@@ -1185,75 +1181,73 @@ Solução: verificar se o Dockerfile do backend usa:
 ```
 Causa:   certificado auto-assinado não reconhecido pelo browser
 Solução: clicar em "Avançar" → "Ir para o site (não seguro)"
-         isso é esperado para certificados auto-assinados
+         isso é esperado para certificados auto-assinados em rede local
 ```
 
 ### Porta 80 ou 443 já está em uso
 ```
 Causa:   outro serviço usando a mesma porta
-Solução: parar o serviço conflitante ou mudar a porta no docker-compose.yml
+Solução: parar o serviço conflitante
          verificar no Windows: netstat -ano | findstr :443
          verificar no Linux:   sudo lsof -i :443
 ```
 
 ### Container backend para imediatamente após iniciar
 ```
-Causa:   erro no código ou variável de ambiente faltando
+Causa:   variável de ambiente faltando ou erro no código
 Solução: docker compose logs backend
-         verificar se todas as variáveis do .env estão preenchidas
+         verificar se todas as variáveis do backend/.env estão preenchidas
 ```
 
-### Agendamento de backup não executa
+### Agendamento de backup não executa após reinício do servidor
 ```
-Causa:   servidor foi reiniciado e os jobs foram perdidos
-         (só acontece se o banco estiver vazio)
-Solução: a função recarregarAgendamentos() é chamada automaticamente
-         ao iniciar o servidor e recria os jobs do banco
-         verificar: docker compose logs backend
+Causa:   isso NÃO deveria ocorrer — recarregarAgendamentos() recria os jobs automaticamente
+Solução: se ocorrer, verificar: docker compose logs backend
+         confirmar que backup_agendamentos tem registros com ativo = 1
 ```
+
+### Sistema integrado aparece como offline
+```
+Causa:   app-fake não está rodando, URL incorreta no cadastro ou api_key errada
+Solução: verificar se o app-fake está rodando na porta correta
+         verificar a URL cadastrada em Sistemas
+         o app-fake loga no terminal cada consulta recebida
+```
+
 ---
 
-## Primeiro upload para o GIT
+## Git — o que sobe e o que não sobe
 
-- .gitignore :
+`.gitignore` configurado:
 
-#dependências — pesado e pode ser reinstalado
-node_modules/
-
-#variáveis de ambiente — NUNCA subir
-.env
-backend/.env
-
-#certificados SSL — não subir chave privada
-ssl/cert.key
-
-#logs gerados pela aplicação
-backend/logs/
-
-#backups gerados pela aplicação
-backend/backups/
-
-#arquivos de sistema
+```
+node_modules/       # dependências — pesado, reinstalável com npm install
+.env                # variáveis de ambiente — NUNCA subir
+backend/.env        # variáveis de ambiente — NUNCA subir
+ssl/cert.key        # chave privada SSL — NUNCA subir
+backend/logs/       # logs gerados pela aplicação
+backend/backups/    # backups gerados pela aplicação
 .DS_Store
 Thumbs.db
+```
 
-- O que subiu (ou não)?
-
-✅ frontend/     → subiu
-✅ backend/      → subiu
-✅ nginx.conf    → subiu
-✅ docker-compose.yml → subiu
-✅ README.md          → subiu
-✅ .env.example       → subiu
-✅ backend/.env.example → subiu
-✅ ssl/cert.crt  → subiu (certificado público, ok)
-
-❌ .env          → NÃO subiu (correto)
-❌ backend/.env  → NÃO subiu (correto)
-❌ ssl/cert.key  → NÃO subiu (correto)
-❌ node_modules/ → NÃO subiu (correto)
-❌ backend/logs/ → NÃO subiu (correto)
-❌ backend/backups/ → NÃO subiu (correto)
+| Arquivo/Pasta | Sobe? | Motivo |
+|---|---|---|
+| `frontend/` | ✅ | código-fonte |
+| `backend/` | ✅ | código-fonte |
+| `sistemas-fake/` | ✅ | código-fonte |
+| `nginx.conf` | ✅ | configuração |
+| `docker-compose.yml` | ✅ | configuração |
+| `README.md` | ✅ | documentação |
+| `.env.example` | ✅ | modelo público sem valores reais |
+| `backend/.env.example` | ✅ | modelo público sem valores reais |
+| `ssl/cert.crt` | ✅ | certificado público — ok subir |
+| `.env` | ❌ | contém senhas reais |
+| `backend/.env` | ❌ | contém senhas reais |
+| `ssl/cert.key` | ❌ | chave privada |
+| `node_modules/` | ❌ | pesado — reinstalar com `npm install` |
+| `backend/logs/` | ❌ | gerado em execução |
+| `backend/backups/` | ❌ | gerado em execução |
 
 ---
 

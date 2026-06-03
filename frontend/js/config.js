@@ -19,4 +19,4 @@
 //const API_URL = ''
 
 // PRODUÇÃO — Docker com Nginx
- const API_URL = '/api'
+const API_URL = '/api'
